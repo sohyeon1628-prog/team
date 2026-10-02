@@ -91,56 +91,57 @@ export default function App() {
           setActiveTab={setActiveTab}
         />
 
-        {/* Main Content Box with Big Curvature matching Sidebar */}
-        <main className="main-curved-content flex-1 py-6 px-4 md:px-8 min-w-0 transition-all z-20">
-          {/* Segmented Menu Bar positioned directly above page */}
-          <div className="max-w-5xl mx-auto flex justify-start">
-            <ProcessBar 
-              activeTab={activeTab}
-              setActiveTab={(tab) => {
-                if (tab === "factcheck") {
-                  handleRunFactCheck();
-                } else {
-                  setActiveTab(tab);
-                }
-              }}
-            />
-          </div>
+        {/* Main Content Wrapper with Top Binder Navigation */}
+        <div className="flex-1 flex flex-col min-w-0 transition-all z-20">
+          {/* Top Process Binder Navigation */}
+          <ProcessBar 
+            activeTab={activeTab}
+            setActiveTab={(tab) => {
+              if (tab === "factcheck") {
+                handleRunFactCheck();
+              } else {
+                setActiveTab(tab);
+              }
+            }}
+          />
 
-          {activeTab === "writer" && (
-            <ArticleWriter
-              article={article}
-              setArticle={setArticle}
-              onOpenSearch={() => setShowSearchModal(true)}
-              onRunFactCheck={handleRunFactCheck}
-              factCheckActive={factCheckActive}
-              factCheckIssues={factCheckIssues}
-              activeFactIndex={activeFactIndex}
-              onApplyFactFix={handleApplyFactFix}
-              onSkipFactFix={handleSkipFactFix}
-            />
-          )}
+          {/* Main Content Solid Box */}
+          <main className="main-curved-content flex-1 py-6 px-4 md:px-8 min-w-0 transition-all">
+            {activeTab === "writer" && (
+              <ArticleWriter
+                article={article}
+                setArticle={setArticle}
+                onOpenSearch={() => setShowSearchModal(true)}
+                onRunFactCheck={handleRunFactCheck}
+                factCheckActive={factCheckActive}
+                factCheckIssues={factCheckIssues}
+                activeFactIndex={activeFactIndex}
+                onApplyFactFix={handleApplyFactFix}
+                onSkipFactFix={handleSkipFactFix}
+              />
+            )}
 
-          {activeTab === "search" && (
-            <SourceSearch onConnectToArticle={handleConnectSource} />
-          )}
+            {activeTab === "search" && (
+              <SourceSearch onConnectToArticle={handleConnectSource} />
+            )}
 
-          {activeTab === "interview" && (
-            <InterviewAudio onReturnToArticle={handleReturnFromInterview} />
-          )}
+            {activeTab === "interview" && (
+              <InterviewAudio onReturnToArticle={handleReturnFromInterview} />
+            )}
 
-          {activeTab === "publish" && (
-            <PublishPrep article={article} setArticle={setArticle} />
-          )}
+            {activeTab === "publish" && (
+              <PublishPrep article={article} setArticle={setArticle} />
+            )}
 
-          {activeTab === "convert" && (
-            <FormatConverter />
-          )}
+            {activeTab === "convert" && (
+              <FormatConverter />
+            )}
 
-          {activeTab === "archive" && (
-            <ArchiveView />
-          )}
-        </main>
+            {activeTab === "archive" && (
+              <ArchiveView />
+            )}
+          </main>
+        </div>
       </div>
 
       {/* Quick Source Search Modal during Writing */}

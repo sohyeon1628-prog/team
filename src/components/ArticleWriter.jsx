@@ -106,9 +106,8 @@ export default function ArticleWriter({
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowDraftModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs transition shadow-xs cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/90 rounded-2xl font-bold text-xs transition shadow-xs cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-amber-300" />
             AI 기사 초안 생성
           </button>
           
@@ -192,7 +191,7 @@ export default function ArticleWriter({
             <span>기사 제목</span>
             {!isTitleConfirmed && (
               <span className="text-slate-600 flex items-center gap-1 bg-slate-100 px-2.5 py-0.5 rounded-md font-bold border border-slate-200/80">
-                <Sparkles className="w-3 h-3 text-amber-500" /> AI 제안 헤드라인 (연한 회색 노출)
+                AI 제안 헤드라인 (연한 회색 노출)
               </span>
             )}
           </div>
@@ -206,7 +205,7 @@ export default function ArticleWriter({
                 setIsTitleConfirmed(true);
               }}
               placeholder="기사 제목을 입력하거나 AI 추천을 확인하세요"
-              className={`w-full text-2xl md:text-3xl font-bold border-b border-slate-200/80 pb-3 outline-none transition-colors bg-transparent ${
+              className={`w-full text-2xl md:text-3xl font-bold border-b border-slate-200/80 pb-3 outline-none transition-colors bg-transparent article-editor-font ${
                 !isTitleConfirmed ? "text-slate-400 font-normal" : "text-slate-900 font-bold"
               }`}
             />
@@ -217,9 +216,9 @@ export default function ArticleWriter({
                 {!isTitleConfirmed && (
                   <button
                     onClick={handleTitleConfirm}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition cursor-pointer"
+                    className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-900 font-bold rounded-lg border border-slate-200 shadow-xs transition cursor-pointer"
                   >
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
                     확정
                   </button>
                 )}
@@ -243,7 +242,7 @@ export default function ArticleWriter({
             value={article.subtitle}
             onChange={(e) => setArticle({ ...article, subtitle: e.target.value })}
             placeholder="기사 부제를 입력하세요"
-            className="w-full text-lg font-bold text-slate-700 border-b border-slate-200/80 pb-2 outline-none focus:border-slate-800 bg-transparent transition-colors"
+            className="w-full text-lg font-bold text-slate-700 border-b border-slate-200/80 pb-2 outline-none focus:border-slate-800 bg-transparent transition-colors article-editor-font"
           />
         </div>
 
@@ -293,7 +292,7 @@ export default function ArticleWriter({
             value={article.content}
             onChange={(e) => setArticle({ ...article, content: e.target.value })}
             placeholder="기사 본문을 입력하세요. 자유롭게 문단을 작성할 수 있습니다..."
-            className="w-full min-h-[460px] text-slate-900 text-base leading-relaxed p-5 bg-white/80 rounded-2xl border border-white focus:bg-white focus:border-slate-800 outline-none transition-all resize-y font-sans shadow-xs"
+            className="w-full min-h-[460px] text-slate-900 text-base leading-relaxed p-5 bg-white/80 rounded-2xl border border-white focus:bg-white focus:border-slate-800 outline-none transition-all resize-y shadow-xs article-editor-font"
           />
 
           <div className="flex items-center justify-between text-xs text-slate-400 mt-2 px-1 font-semibold">
@@ -309,7 +308,6 @@ export default function ArticleWriter({
           <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-2xl border border-white space-y-5 animate-float-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-slate-900" />
                 <h3 className="text-lg font-bold text-slate-900">AI 기사 초안 생성</h3>
               </div>
               <button
@@ -363,16 +361,16 @@ export default function ArticleWriter({
               <button
                 onClick={handleGenerateDraft}
                 disabled={isGenerating}
-                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold rounded-xl transition shadow-md shadow-slate-900/20 cursor-pointer flex items-center gap-2"
+                className="px-5 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 text-sm font-bold rounded-xl transition shadow-xs cursor-pointer flex items-center gap-2"
               >
                 {isGenerating ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-slate-800 border-t-transparent rounded-full animate-spin" />
                     <span>초안 생성 중...</span>
                   </>
                 ) : (
                   <>
-                    <Wand2 className="w-4 h-4 text-slate-200" />
+                    <Wand2 className="w-4 h-4 text-slate-700" />
                     <span>초안 자동 생성</span>
                   </>
                 )}

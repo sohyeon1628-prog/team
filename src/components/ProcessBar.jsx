@@ -1,30 +1,76 @@
 import React from "react";
+import { PenTool, Send, Sparkles, FileCheck2 } from "lucide-react";
 
+/**
+ * 인덱스 바인더 탭(Binder Tab) 네비게이션 컴포넌트
+ * - 메인 박스와 바닥 가로선 없이 시원하게 하나로 뚫려 결합되는 파일 탭
+ */
 export default function ProcessBar({ activeTab, setActiveTab }) {
-  // Navigation Menu Tabs matching exact wording from the reference screenshot
-  const menuTabs = [
-    { id: "writer", label: "작성·검토" },
-    { id: "publish", label: "발행 준비" },
-    { id: "convert", label: "플랫폼 변환" },
-    { id: "archive", label: "보관" }
+  const steps = [
+    { id: "writer", label: "작성·검토", icon: PenTool },
+    { id: "publish", label: "발행 준비", icon: Send },
+    { id: "convert", label: "플랫폼 변환", icon: Sparkles },
+    { id: "archive", label: "보관함", icon: FileCheck2 },
   ];
 
+  // 활성 탭 식별 (writer 관련 하위 단계 포함)
+  const isStepActive = (tabId) => {
+    if (tabId === "writer") {
+      return ["writer", "factcheck", "search", "interview"].includes(activeTab);
+    }
+    return activeTab === tabId;
+  };
+
   return (
-    <div className="mb-6 inline-flex items-center bg-white/80 backdrop-blur-md p-1.5 rounded-2xl border border-slate-200/90 shadow-xs">
-      {menuTabs.map((tab) => {
-        // 'writer' or 'factcheck' maps to '작성·검토'
-        const isActive = activeTab === tab.id || (tab.id === "writer" && activeTab === "factcheck");
+    <div className="w-full flex items-end justify-start gap-2 md:gap-3 px-4 md:px-8 select-none relative z-30">
+      {steps.map((step) => {
+        const active = isStepActive(step.id);
+        const Icon = step.icon;
+
         return (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-              isActive
-                ? "bg-slate-950 text-white shadow-xs font-extrabold"
-                : "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
+            key={step.id}
+            onClick={() => setActiveTab(step.id)}
+            className={`transition-all duration-200 cursor-pointer select-none flex items-center justify-center gap-2 h-8 md:h-9 rounded-t-2xl px-4 relative ${
+              active
+                ? "binder-tab-active text-slate-950 font-bold text-xs md:text-sm"
+                : "binder-tab-inactive text-slate-600 hover:text-slate-900 font-medium text-xs md:text-sm"
             }`}
+            title={step.label}
           >
-            {tab.label}
+            {/* 좌측 하단 메인 박스 연결 오목 곡선 */}
+            {active && (
+              <div className="absolute -bottom-[3px] -left-3 w-3 h-3 pointer-events-none z-40">
+                <svg viewBox="0 0 12 12" fill="none" className="w-full h-full">
+                  <path d="M 0 12 A 12 12 0 0 0 12 0 V 12 H 0 Z" fill="#ffffff" />
+                  <path d="M 0 12 A 12 12 0 0 0 12 0" stroke="rgba(226, 232, 240, 0.95)" strokeWidth="1" fill="none" />
+                </svg>
+              </div>
+            )}
+
+            {/* 바닥 메인 박스 가로 경계선 완전 삭제 화이트 패치 */}
+            {active && (
+              <div className="absolute -bottom-[3px] left-0 right-0 h-[5px] bg-white z-40 pointer-events-none" />
+            )}
+
+            <div
+              className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
+                active ? "bg-slate-900 text-white" : "text-slate-500"
+              }`}
+            >
+              <Icon className="w-3 h-3" />
+            </div>
+            <span>{step.label}</span>
+
+            {/* 우측 하단 메인 박스 연결 오목 곡선 */}
+            {active && (
+              <div className="absolute -bottom-[3px] -right-3 w-3 h-3 pointer-events-none z-40">
+                <svg viewBox="0 0 12 12" fill="none" className="w-full h-full">
+                  <path d="M 0 0 A 12 12 0 0 0 12 12 H 0 V 0 Z" fill="#ffffff" />
+                  <path d="M 0 0 A 12 12 0 0 0 12 12" stroke="rgba(226, 232, 240, 0.95)" strokeWidth="1" fill="none" />
+                </svg>
+              </div>
+            )}
           </button>
         );
       })}
