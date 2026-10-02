@@ -9,7 +9,21 @@ import {
   Italic, 
   Quote, 
   Wand2,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  Edit3,
+  Columns,
+  Image as ImageIcon,
+  Upload,
+  Send,
+  Download,
+  Info,
+  ExternalLink,
+  ChevronRight,
+  Share2,
+  Bookmark,
+  Heart,
+  MessageSquare
 } from "lucide-react";
 
 export default function ArticleWriter({ 
@@ -23,17 +37,46 @@ export default function ArticleWriter({
   onApplyFactFix,
   onSkipFactFix
 }) {
+  // 1. 화면 뷰 모드: 'editor' (에디터만) | 'split' (에디터+미리보기 나란히) | 'preview' (미리보기 전체)
+  const [viewMode, setViewMode] = useState("editor");
+
+  // 2. 미리보기 플랫폼 탭: 'donga' (동아일보 공식 웹) | 'naver' (네이버 뉴스 포털)
+  const [previewPlatform, setPreviewPlatform] = useState("donga");
+
+  // 3. 사진/미디어 관리 상태
+  const [photos, setPhotos] = useState(article.photos || [
+    {
+      id: "photo-1",
+      url: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+      caption: "국내 연구진이 개발한 차세대 AI 반도체 NPU 웨이퍼 시제품",
+      source: "동아일보 DB",
+      provider: "김동아 기자",
+      ratio: "16:9 (동아일보 대표)"
+    }
+  ]);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [newCaption, setNewCaption] = useState("");
+  const [newSource, setNewSource] = useState("동아일보 DB");
+  const [newProvider, setNewProvider] = useState("김동아 기자");
+  const [newRatio, setNewRatio] = useState("16:9");
+
+  // 4. CMS 발행 이관 상태
+  const [isCmsExporting, setIsCmsExporting] = useState(false);
+  const [isCmsSuccessModal, setIsCmsSuccessModal] = useState(false);
+
+  // 에디터 서식 및 제목 관련 상태
   const [isTitleHovered, setIsTitleHovered] = useState(false);
   const [isTitleConfirmed, setIsTitleConfirmed] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [floatingToolbarPos, setFloatingToolbarPos] = useState(null);
   const [showDraftModal, setShowDraftModal] = useState(false);
-  
   const [draftPrompt, setDraftPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
   const editorRef = useRef(null);
+  const photoInputRef = useRef(null);
 
+  // 텍스트 드래그 선택 서식 툴바
   const handleSelection = () => {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !editorRef.current) {
@@ -50,7 +93,7 @@ export default function ArticleWriter({
       const containerRect = editorRef.current.getBoundingClientRect();
 
       setFloatingToolbarPos({
-        top: rect.top - containerRect.top - 48,
+        top: Math.max(0, rect.top - containerRect.top - 48),
         left: Math.max(10, rect.left - containerRect.left + (rect.width / 2) - 120)
       });
     } else {
@@ -99,47 +142,172 @@ export default function ArticleWriter({
     setFloatingToolbarPos(null);
   };
 
+  // 사진 업로드 핸들러
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvt) => {
+        if (uploadEvt.target?.result) {
+          const newPhoto = {
+            id: `photo-${Date.now()}`,
+            url: uploadEvt.target.result,
+            caption: newCaption || file.name,
+            source: newSource || "동아일보 DB",
+            provider: newProvider || "기자",
+            ratio: newRatio
+          };
+          const updated = [newPhoto, ...photos];
+          setPhotos(updated);
+          setArticle((prev) => ({ ...prev, photos: updated }));
+          setNewCaption("");
+          setShowPhotoModal(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 본문에 사진 태그 삽입
+  const handleInsertPhotoToContent = (photo) => {
+    const photoTag = `\n\n[사진 삽입: ${photo.caption} (출처: ${photo.source}, 제공: ${photo.provider})]\n\n`;
+    setArticle((prev) => ({
+      ...prev,
+      content: prev.content + photoTag
+    }));
+    alert(`"${photo.caption}" 사진이 기사 본문에 삽입되었습니다.`);
+  };
+
+  // CMS 발행/이관 실행
+  const handleCmsExport = () => {
+    setIsCmsExporting(true);
+    setTimeout(() => {
+      setIsCmsExporting(false);
+      setIsCmsSuccessModal(true);
+      setArticle((prev) => ({ ...prev, status: "발행 완료" }));
+    }, 1200);
+  };
+
   return (
-    <div className="max-w-5xl mx-auto py-6 px-4 space-y-6 animate-float-in">
-      {/* Top Glass Actions Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 glass-card p-4 shadow-xs">
-        <div className="flex items-center gap-3">
+    <div className="w-full space-y-5 animate-float-in">
+
+      {/* ──────────────────────────────────────────
+          1. 최상단 통합 컨트롤 툴바
+          (AI 초안, 자료검색, 팩트체크, 뷰 모드 전환, 미디어 관리, CMS 발행)
+         ────────────────────────────────────────── */}
+      <div className="bg-white/95 rounded-3xl border border-slate-200/90 p-4 md:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        
+        {/* 좌측: 기사 작성 도구들 */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             onClick={() => setShowDraftModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/90 rounded-2xl font-bold text-xs transition shadow-xs cursor-pointer"
+            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs md:text-sm transition shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
           >
-            AI 기사 초안 생성
+            <Wand2 className="w-4 h-4 text-amber-300" />
+            <span>AI 기사 초안 생성</span>
           </button>
           
           <button
             onClick={onOpenSearch}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/80 hover:bg-white text-slate-700 border border-slate-200/80 rounded-2xl text-xs font-bold transition shadow-xs cursor-pointer"
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer flex items-center gap-2"
           >
-            <Search className="w-4 h-4 text-slate-500" />
-            취재자료 검색
+            <Search className="w-4 h-4 text-slate-600" />
+            <span>취재자료 검색</span>
           </button>
-        </div>
 
-        <div className="flex items-center gap-2">
           <button
             onClick={onRunFactCheck}
-            className={`flex items-center gap-2 px-4.5 py-2.5 rounded-2xl text-xs font-bold transition cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer flex items-center gap-2 ${
               factCheckActive
                 ? "bg-amber-600 text-white shadow-xs"
-                : "bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 shadow-xs"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80"
             }`}
           >
             <CheckCircle2 className={`w-4 h-4 ${factCheckActive ? "text-white" : "text-emerald-600"}`} />
-            {factCheckActive ? "팩트체크 진행 중..." : "기사 팩트체크 실행"}
+            <span>{factCheckActive ? "팩트체크 진행 중..." : "기사 팩트체크"}</span>
+          </button>
+
+          <button
+            onClick={() => setShowPhotoModal(true)}
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer flex items-center gap-2"
+          >
+            <ImageIcon className="w-4 h-4 text-purple-600" />
+            <span>사진·미디어 편집 ({photos.length})</span>
           </button>
         </div>
+
+        {/* 우측: 뷰 모드 전환 및 [CMS 최종 발행] 버튼 */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* 뷰 모드 전환 탭 */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200/70 shadow-inner">
+            <button
+              onClick={() => setViewMode("editor")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+                viewMode === "editor"
+                  ? "bg-white text-slate-950 shadow-2xs scale-[1.02]"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="기사 작성 에디터만 넓게 봅니다"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>에디터</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode("split")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+                viewMode === "split"
+                  ? "bg-white text-slate-950 shadow-2xs scale-[1.02]"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="에디터와 실시간 포털 미리보기를 나란히 봅니다"
+            >
+              <Columns className="w-3.5 h-3.5" />
+              <span>나란히 보기</span>
+            </button>
+
+            <button
+              onClick={() => setViewMode("preview")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
+                viewMode === "preview"
+                  ? "bg-white text-slate-950 shadow-2xs scale-[1.02]"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+              title="실시간 최종 포털/신문 뷰만 집중해서 봅니다"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>미리보기</span>
+            </button>
+          </div>
+
+          {/* CMS 최종 발행/이관 버튼 */}
+          <button
+            onClick={handleCmsExport}
+            disabled={isCmsExporting}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs md:text-sm rounded-xl transition shadow-sm cursor-pointer flex items-center gap-2 active:scale-95"
+            title="현재 기사를 CMS(신문/포털 송고 시스템)로 최종 발행합니다"
+          >
+            {isCmsExporting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>발행 처리 중...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 text-white" />
+                <span>CMS 최종 발행/이관</span>
+              </>
+            )}
+          </button>
+        </div>
+
       </div>
 
-      {/* Sequential Fact Check Glass Banner (Item 13) */}
+      {/* 팩트체크 진행 배너 */}
       {factCheckActive && factCheckIssues.length > 0 && (
-        <div className="glass-card p-5 bg-gradient-to-r from-amber-50/90 via-orange-50/90 to-amber-50/90 border-amber-200/80 shadow-xs space-y-3 animate-float-in">
+        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-5 shadow-xs space-y-3 animate-float-in">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-900 font-extrabold text-base">
+            <div className="flex items-center gap-2 text-slate-900 font-extrabold text-sm md:text-base">
               <AlertTriangle className="w-5 h-5 text-amber-600" />
               <span>AI 팩트체크 순서형 검사 ({activeFactIndex + 1} / {factCheckIssues.length})</span>
             </div>
@@ -148,14 +316,14 @@ export default function ArticleWriter({
             </span>
           </div>
 
-          <div className="bg-white/95 p-4 rounded-2xl border border-amber-200/80 space-y-2">
-            <p className="text-sm font-semibold text-slate-800">
+          <div className="bg-white p-4 rounded-xl border border-amber-200/80 space-y-2 text-xs md:text-sm">
+            <p className="font-semibold text-slate-800">
               문제 문장: <span className="underline decoration-red-500 decoration-2 text-red-700 bg-red-50 px-1 rounded">{factCheckIssues[activeFactIndex]?.targetText}</span>
             </p>
-            <p className="text-xs text-slate-600">
+            <p className="text-slate-600">
               <strong className="text-slate-900">발생 이유:</strong> {factCheckIssues[activeFactIndex]?.reason}
             </p>
-            <div className="text-xs text-slate-900 bg-emerald-50/90 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-2">
+            <div className="text-slate-900 bg-emerald-50/90 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-2">
               <Wand2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
               <span><strong>AI 수정안 제안:</strong> "{factCheckIssues[activeFactIndex]?.suggestion}"</span>
             </div>
@@ -179,136 +347,465 @@ export default function ArticleWriter({
         </div>
       )}
 
-      {/* Main Glass Writing Canvas (Item 10, 11, 12) */}
-      <div className="glass-card p-8 md:p-12 space-y-8 relative min-h-[680px]">
-        {/* Title Input Area (Item 11) */}
-        <div 
-          className="space-y-2 relative group"
-          onMouseEnter={() => setIsTitleHovered(true)}
-          onMouseLeave={() => setIsTitleHovered(false)}
-        >
-          <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>기사 제목</span>
-            {!isTitleConfirmed && (
-              <span className="text-slate-600 flex items-center gap-1 bg-slate-100 px-2.5 py-0.5 rounded-md font-bold border border-slate-200/80">
-                AI 제안 헤드라인 (연한 회색 노출)
-              </span>
-            )}
-          </div>
+      {/* ──────────────────────────────────────────
+          2. 메인 작업 영역: [에디터] / [나란히 보기] / [미리보기]
+         ────────────────────────────────────────── */}
+      <div className={`grid gap-6 items-start ${
+        viewMode === "split" ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
+      }`}>
 
-          <div className="relative">
-            <input
-              type="text"
-              value={article.title}
-              onChange={(e) => {
-                setArticle({ ...article, title: e.target.value });
-                setIsTitleConfirmed(true);
-              }}
-              placeholder="기사 제목을 입력하거나 AI 추천을 확인하세요"
-              className={`w-full text-2xl md:text-3xl font-bold border-b border-slate-200/80 pb-3 outline-none transition-colors bg-transparent article-editor-font ${
-                !isTitleConfirmed ? "text-slate-400 font-normal" : "text-slate-900 font-bold"
-              }`}
-            />
-
-            {/* Hover Floating Actions: [확정] [다시 생성하기] */}
-            {(isTitleHovered || !isTitleConfirmed) && (
-              <div className="absolute right-2 bottom-3 flex items-center gap-2 bg-white/95 backdrop-blur-md p-1 rounded-xl shadow-md border border-slate-200 animate-float-in">
+        {/* ──────────────────
+            [A] 기사 작성 에디터 캔버스 (viewMode가 'editor' 또는 'split'일 때 표시)
+           ────────────────── */}
+        {(viewMode === "editor" || viewMode === "split") && (
+          <div className="bg-white/95 rounded-3xl border border-slate-200/90 p-6 md:p-8 space-y-6 shadow-xs relative min-h-[640px]">
+            
+            {/* 기사 헤드라인 영역 */}
+            <div 
+              className="space-y-2 relative group"
+              onMouseEnter={() => setIsTitleHovered(true)}
+              onMouseLeave={() => setIsTitleHovered(false)}
+            >
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+                <span>기사 제목</span>
                 {!isTitleConfirmed && (
-                  <button
-                    onClick={handleTitleConfirm}
-                    className="flex items-center gap-1 text-xs px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-900 font-bold rounded-lg border border-slate-200 shadow-xs transition cursor-pointer"
-                  >
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    확정
-                  </button>
+                  <span className="text-slate-600 flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-bold border border-slate-200/80">
+                    AI 제안 헤드라인
+                  </span>
                 )}
-                <button
-                  onClick={handleRegenerateTitle}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                  다시 생성하기
-                </button>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={article.title}
+                  onChange={(e) => {
+                    setArticle({ ...article, title: e.target.value });
+                    setIsTitleConfirmed(true);
+                  }}
+                  placeholder="기사 제목을 입력하거나 AI 추천을 확인하세요"
+                  className={`w-full text-xl md:text-2xl font-black border-b border-slate-200 pb-3 outline-none transition-colors bg-transparent ${
+                    !isTitleConfirmed ? "text-slate-400 font-bold" : "text-slate-900 font-black"
+                  }`}
+                />
+
+                {(isTitleHovered || !isTitleConfirmed) && (
+                  <div className="absolute right-2 bottom-3 flex items-center gap-1.5 bg-white/95 p-1 rounded-xl shadow-md border border-slate-200 animate-float-in">
+                    {!isTitleConfirmed && (
+                      <button
+                        onClick={handleTitleConfirm}
+                        className="text-xs px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-900 font-bold rounded-lg border border-slate-200 shadow-2xs transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        확정
+                      </button>
+                    )}
+                    <button
+                      onClick={handleRegenerateTitle}
+                      className="text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3 h-3 text-slate-500" />
+                      다시 생성
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 부제 영역 */}
+            <div className="space-y-1">
+              <label className="text-xs text-slate-400 font-semibold">부제 (부제목)</label>
+              <input
+                type="text"
+                value={article.subtitle}
+                onChange={(e) => setArticle({ ...article, subtitle: e.target.value })}
+                placeholder="기사 부제를 입력하세요"
+                className="w-full text-sm md:text-base font-bold text-slate-700 border-b border-slate-200 pb-2 outline-none focus:border-slate-800 bg-transparent transition-colors"
+              />
+            </div>
+
+            {/* 첨부된 사진 썸네일 스트립 (클릭 시 본문 삽입) */}
+            {photos.length > 0 && (
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-extrabold text-slate-700 flex items-center gap-1">
+                    <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
+                    첨부된 사진 ({photos.length}) · 클릭하여 본문에 바로 삽입:
+                  </span>
+                  <button
+                    onClick={() => setShowPhotoModal(true)}
+                    className="text-blue-600 hover:underline font-bold text-[11px]"
+                  >
+                    + 사진 추가
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                  {photos.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => handleInsertPhotoToContent(p)}
+                      className="flex items-center gap-2.5 p-2 bg-white rounded-xl border border-slate-200 hover:border-slate-900 transition cursor-pointer shadow-2xs group min-w-[200px]"
+                      title="클릭 시 본문 커서 위치에 사진 태그가 삽입됩니다"
+                    >
+                      <img src={p.url} alt="thumb" className="w-12 h-10 object-cover rounded-lg flex-shrink-0" />
+                      <div className="truncate text-xs">
+                        <span className="font-extrabold text-slate-900 block truncate">{p.caption}</span>
+                        <span className="text-[10px] text-slate-400 block">{p.source}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Subtitle Area */}
-        <div className="space-y-1">
-          <label className="text-xs text-slate-400 font-semibold">부제 (부제목)</label>
-          <input
-            type="text"
-            value={article.subtitle}
-            onChange={(e) => setArticle({ ...article, subtitle: e.target.value })}
-            placeholder="기사 부제를 입력하세요"
-            className="w-full text-lg font-bold text-slate-700 border-b border-slate-200/80 pb-2 outline-none focus:border-slate-800 bg-transparent transition-colors article-editor-font"
-          />
-        </div>
+            {/* 본문 텍스트 에디터 */}
+            <div className="relative pt-1" ref={editorRef} onMouseUp={handleSelection}>
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold mb-2">
+                <span>본문 작성 영역 (자유 작성 및 서식 적용)</span>
+                <span>공백 포함 {article.content.length.toLocaleString()}자</span>
+              </div>
 
-        {/* Content Writing Area (Item 12: High Readability Editor) */}
-        <div className="relative pt-2" ref={editorRef} onMouseUp={handleSelection} keyUp={handleSelection}>
-          <label className="text-xs text-slate-400 font-semibold mb-2 block">본문 작성 영역 (자유 작성)</label>
+              {/* 드래그 플로팅 툴바 */}
+              {floatingToolbarPos && (
+                <div
+                  style={{ top: `${floatingToolbarPos.top}px`, left: `${floatingToolbarPos.left}px` }}
+                  className="absolute z-30 flex items-center gap-1 bg-slate-900 text-white px-2 py-1.5 rounded-xl shadow-xl border border-slate-700 animate-float-in text-xs"
+                >
+                  <button onClick={() => applyFormat("굵게")} className="p-1 hover:bg-slate-800 rounded-md" title="굵게">
+                    <Bold className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => applyFormat("기울임")} className="p-1 hover:bg-slate-800 rounded-md" title="기울임">
+                    <Italic className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => applyFormat("인용구")} className="p-1 hover:bg-slate-800 rounded-md" title="인용구">
+                    <Quote className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="w-[1px] h-4 bg-slate-700 my-auto mx-1" />
+                  <button
+                    onClick={() => applyFormat("AI 다듬기")}
+                    className="p-1 px-2 hover:bg-blue-600 rounded-md transition flex items-center gap-1 text-blue-300 font-bold"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI 문장 다듬기
+                  </button>
+                </div>
+              )}
 
-          {/* Floating Context Formatting Toolbar */}
-          {floatingToolbarPos && (
-            <div
-              style={{ top: `${floatingToolbarPos.top}px`, left: `${floatingToolbarPos.left}px` }}
-              className="absolute z-30 flex items-center gap-1 bg-slate-900 text-white px-2 py-1.5 rounded-xl shadow-xl border border-slate-700 animate-float-in text-xs"
-            >
-              <button
-                onClick={() => applyFormat("굵게")}
-                className="p-1.5 hover:bg-slate-800 rounded-md transition cursor-pointer"
-                title="굵게"
-              >
-                <Bold className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => applyFormat("기울임")}
-                className="p-1.5 hover:bg-slate-800 rounded-md transition cursor-pointer"
-                title="기울임"
-              >
-                <Italic className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => applyFormat("인용구")}
-                className="p-1.5 hover:bg-slate-800 rounded-md transition cursor-pointer"
-                title="인용구"
-              >
-                <Quote className="w-3.5 h-3.5" />
-              </button>
-              <div className="w-[1px] h-4 bg-slate-700 my-auto mx-1" />
-              <button
-                onClick={() => applyFormat("AI 다듬기")}
-                className="p-1 px-2 hover:bg-blue-600 rounded-md transition cursor-pointer flex items-center gap-1 text-blue-300 font-bold"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                AI 문장 다듬기
-              </button>
+              <textarea
+                value={article.content}
+                onChange={(e) => setArticle({ ...article, content: e.target.value })}
+                placeholder="기사 본문을 입력하세요. 자유롭게 문단을 작성할 수 있습니다..."
+                className="w-full min-h-[460px] text-slate-900 text-xs md:text-sm leading-relaxed p-5 bg-slate-50/70 rounded-2xl border border-slate-200 focus:bg-white focus:border-slate-800 outline-none transition-all resize-y shadow-2xs font-sans"
+              />
             </div>
-          )}
 
-          <textarea
-            value={article.content}
-            onChange={(e) => setArticle({ ...article, content: e.target.value })}
-            placeholder="기사 본문을 입력하세요. 자유롭게 문단을 작성할 수 있습니다..."
-            className="w-full min-h-[460px] text-slate-900 text-base leading-relaxed p-5 bg-white/80 rounded-2xl border border-white focus:bg-white focus:border-slate-800 outline-none transition-all resize-y shadow-xs article-editor-font"
-          />
-
-          <div className="flex items-center justify-between text-xs text-slate-400 mt-2 px-1 font-semibold">
-            <span>자유 본문 작성 영역 (드래그 시 포맷 툴바 노출)</span>
-            <span>공백 포함 {article.content.length}자</span>
           </div>
-        </div>
+        )}
+
+        {/* ──────────────────
+            [B] 실시간 포털/신문 미리보기 캔버스 (viewMode가 'preview' 또는 'split'일 때 표시)
+           ────────────────── */}
+        {(viewMode === "preview" || viewMode === "split") && (
+          <div className="bg-white/95 rounded-3xl border border-slate-200/90 p-5 md:p-8 space-y-5 shadow-xs">
+            
+            {/* 미리보기 상단 플랫폼 전환 탭 (동아일보 vs 네이버 뉴스) */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs md:text-sm font-extrabold text-slate-900">
+                  실시간 독자 화면 미리보기
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button
+                  onClick={() => setPreviewPlatform("donga")}
+                  className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                    previewPlatform === "donga"
+                      ? "bg-slate-900 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  동아일보 웹
+                </button>
+                <button
+                  onClick={() => setPreviewPlatform("naver")}
+                  className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                    previewPlatform === "naver"
+                      ? "bg-emerald-600 text-white shadow-2xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  네이버 뉴스
+                </button>
+              </div>
+            </div>
+
+            {/* 실제 미리보기 프레임 */}
+            <div className="bg-slate-100/70 p-4 md:p-6 rounded-3xl border border-slate-200 shadow-inner">
+              
+              {/* 1. 동아일보 공식 웹 뉴스 뷰 */}
+              {previewPlatform === "donga" && (
+                <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6 md:p-8 space-y-5 max-w-2xl mx-auto animate-float-in">
+                  {/* 동아 브랜드 헤더 */}
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-xs">
+                    <span className="font-serif font-black text-slate-900 text-lg tracking-wider">
+                      東亞日報
+                    </span>
+                    <span className="text-slate-400 font-medium">경제 · IT 산업</span>
+                  </div>
+
+                  {/* 제목 & 부제 */}
+                  <div className="space-y-2">
+                    <h2 className="text-xl md:text-2xl font-black text-slate-950 leading-tight">
+                      {article.title || "기사 제목이 이곳에 표시됩니다"}
+                    </h2>
+                    {article.subtitle && (
+                      <p className="text-xs md:text-sm font-bold text-slate-600 leading-relaxed">
+                        {article.subtitle}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 바이라인 & 작성일자 */}
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-slate-800">김동아 기자</span>
+                      <span>|</span>
+                      <span>입력 2026-10-02 17:00</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Bookmark className="w-3.5 h-3.5 text-slate-400" />
+                      <Share2 className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  </div>
+
+                  {/* 기사 대표 사진 (있을 경우) */}
+                  {photos.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                        <img src={photos[0].url} alt="main article" className="w-full h-full object-cover" />
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        ▲ {photos[0].caption} (출처: {photos[0].source})
+                      </p>
+                    </div>
+                  )}
+
+                  {/* 기사 본문 줄글 */}
+                  <div className="text-xs md:text-sm text-slate-800 leading-loose whitespace-pre-line font-serif space-y-4 pt-1">
+                    {article.content || "기사 본문 내용이 실시간으로 렌더링됩니다..."}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. 네이버 뉴스 포털 뷰 */}
+              {previewPlatform === "naver" && (
+                <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-5 md:p-7 space-y-4 max-w-2xl mx-auto animate-float-in">
+                  {/* 네이버 뉴스 뱃지 */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-md bg-emerald-500 text-white font-black text-xs flex items-center justify-center">
+                        N
+                      </span>
+                      <span className="font-extrabold text-xs text-slate-900">네이버 뉴스 · IT/과학</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">포털 송고 규격</span>
+                  </div>
+
+                  {/* 제목 */}
+                  <h2 className="text-lg md:text-xl font-black text-slate-950 leading-snug">
+                    {article.title || "기사 제목이 표시됩니다"}
+                  </h2>
+
+                  {/* 언론사 및 바이라인 */}
+                  <div className="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-100">
+                    <span className="font-bold text-slate-900">동아일보</span>
+                    <span className="text-[11px]">2026.10.02. 오후 5:00</span>
+                  </div>
+
+                  {/* 대표 이미지 */}
+                  {photos.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                        <img src={photos[0].url} alt="naver news media" className="w-full h-full object-cover" />
+                      </div>
+                      <span className="text-[10px] text-slate-400 block">{photos[0].caption}</span>
+                    </div>
+                  )}
+
+                  {/* 본문 */}
+                  <div className="text-xs md:text-sm text-slate-900 leading-relaxed whitespace-pre-line font-sans pt-1">
+                    {article.content || "작성된 기사 본문이 포털 양식으로 미리보기됩니다."}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+          </div>
+        )}
+
       </div>
 
-      {/* AI Draft Generator Modal */}
+      {/* ──────────────────────────────────────────
+          3. 사진·미디어 관리 및 본문 삽입 모달
+         ────────────────────────────────────────── */}
+      {showPhotoModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-2xl space-y-5 animate-float-in border border-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-purple-600" />
+                <h3 className="text-base font-black text-slate-900">기사 사진 업로드 및 규격 편집</h3>
+              </div>
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* 새 사진 업로드 폼 */}
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="font-bold text-slate-800 block mb-1">사진 설명 (캡션)</label>
+                <input
+                  type="text"
+                  value={newCaption}
+                  onChange={(e) => setNewCaption(e.target.value)}
+                  placeholder="예: 국내 연구진이 발표한 차세대 AI 반도체 시제품"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-800 block mb-1">사진 출처</label>
+                  <input
+                    type="text"
+                    value={newSource}
+                    onChange={(e) => setNewSource(e.target.value)}
+                    placeholder="동아일보 DB"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-800 block mb-1">제공자</label>
+                  <input
+                    type="text"
+                    value={newProvider}
+                    onChange={(e) => setNewProvider(e.target.value)}
+                    placeholder="김동아 기자"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-800 block mb-1">자동 규격 선택</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {["16:9 (대표)", "4:3 (본문)", "1:1 (SNS)"].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setNewRatio(r)}
+                      className={`p-2 rounded-xl text-center font-bold border transition cursor-pointer ${
+                        newRatio === r
+                          ? "bg-slate-900 text-white border-slate-900"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  className="w-full py-3 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold rounded-xl border border-purple-200 transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>내 PC에서 사진 파일 업로드</span>
+                </button>
+                <input
+                  type="file"
+                  ref={photoInputRef}
+                  onChange={handlePhotoUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {/* 현재 등록된 사진 리스트 */}
+            <div className="border-t border-slate-100 pt-3 space-y-2">
+              <span className="text-xs font-bold text-slate-700 block">등록된 사진 목록:</span>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {photos.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+                    <div className="flex items-center gap-2.5 truncate">
+                      <img src={p.url} alt="p" className="w-10 h-8 object-cover rounded-md flex-shrink-0" />
+                      <span className="font-bold text-slate-800 truncate">{p.caption}</span>
+                    </div>
+                    <button
+                      onClick={() => handleInsertPhotoToContent(p)}
+                      className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-lg shadow-2xs flex-shrink-0 cursor-pointer"
+                    >
+                      본문 삽입
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowPhotoModal(false)}
+                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────
+          4. CMS 최종 발행 성공 알림 모달
+         ────────────────────────────────────────── */}
+      {isCmsSuccessModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl text-center space-y-4 animate-float-in border border-slate-100">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <Check className="w-6 h-6 stroke-[3]" />
+            </div>
+            <h3 className="text-lg font-black text-slate-950">CMS 발행이 완료되었습니다</h3>
+            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+              동아일보 디지털 통합 시스템(CMS)과 포털 송고 대기열로 기사 텍스트와 사진 데이터가 성공적으로 이관되었습니다.
+            </p>
+            <button
+              onClick={() => setIsCmsSuccessModal(false)}
+              className="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer transition"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI 기사 초안 생성 모달 */}
       {showDraftModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-2xl border border-white space-y-5 animate-float-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold text-slate-900">AI 기사 초안 생성</h3>
+                <Wand2 className="w-4 h-4 text-amber-500" />
+                <h3 className="text-base font-bold text-slate-900">AI 기사 초안 생성</h3>
               </div>
               <button
                 onClick={() => setShowDraftModal(false)}
@@ -318,7 +815,7 @@ export default function ArticleWriter({
               </button>
             </div>
 
-            <div className="space-y-4 text-sm">
+            <div className="space-y-4 text-xs md:text-sm">
               <p className="text-slate-600">
                 수집된 취재자료나 녹취 데이터를 바탕으로 AI가 종합 기사 초안을 작성합니다.
               </p>
@@ -346,7 +843,7 @@ export default function ArticleWriter({
                   value={draftPrompt}
                   onChange={(e) => setDraftPrompt(e.target.value)}
                   placeholder="예: 핵심 기술 성과 위주로 객관적 톤으로 작성해줘"
-                  className="w-full px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-slate-800"
+                  className="w-full px-3.5 py-2.5 bg-slate-50/80 border border-slate-200 rounded-xl text-slate-900 outline-none focus:border-slate-800 text-xs"
                 />
               </div>
             </div>
@@ -354,23 +851,23 @@ export default function ArticleWriter({
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setShowDraftModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer"
               >
                 취소
               </button>
               <button
                 onClick={handleGenerateDraft}
                 disabled={isGenerating}
-                className="px-5 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 text-sm font-bold rounded-xl transition shadow-xs cursor-pointer flex items-center gap-2"
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer flex items-center gap-2"
               >
                 {isGenerating ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-slate-800 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     <span>초안 생성 중...</span>
                   </>
                 ) : (
                   <>
-                    <Wand2 className="w-4 h-4 text-slate-700" />
+                    <Wand2 className="w-3.5 h-3.5 text-amber-300" />
                     <span>초안 자동 생성</span>
                   </>
                 )}
@@ -379,6 +876,7 @@ export default function ArticleWriter({
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -4,7 +4,7 @@ import ProcessBar from "./components/ProcessBar";
 import Sidebar from "./components/Sidebar";
 import ArticleWriter from "./components/ArticleWriter";
 import SourceSearch from "./components/SourceSearch";
-import InterviewAudio from "./components/InterviewAudio";
+import InterviewStudio from "./components/interview/InterviewStudio";
 import PublishPrep from "./components/PublishPrep";
 import FormatConverter from "./components/FormatConverter";
 import ArchiveView from "./components/ArchiveView";
@@ -93,17 +93,19 @@ export default function App() {
 
         {/* Main Content Wrapper with Top Binder Navigation */}
         <div className="flex-1 flex flex-col min-w-0 transition-all z-20">
-          {/* Top Process Binder Navigation */}
-          <ProcessBar 
-            activeTab={activeTab}
-            setActiveTab={(tab) => {
-              if (tab === "factcheck") {
-                handleRunFactCheck();
-              } else {
-                setActiveTab(tab);
-              }
-            }}
-          />
+          {/* Top Process Binder Navigation - 녹음 파일(interview) 화면에서는 숨김 */}
+          {activeTab !== "interview" && (
+            <ProcessBar 
+              activeTab={activeTab}
+              setActiveTab={(tab) => {
+                if (tab === "factcheck") {
+                  handleRunFactCheck();
+                } else {
+                  setActiveTab(tab);
+                }
+              }}
+            />
+          )}
 
           {/* Main Content Solid Box */}
           <main className="main-curved-content flex-1 py-6 px-4 md:px-8 min-w-0 transition-all">
@@ -126,11 +128,22 @@ export default function App() {
             )}
 
             {activeTab === "interview" && (
-              <InterviewAudio onReturnToArticle={handleReturnFromInterview} />
+              <InterviewStudio onReturnToArticle={handleReturnFromInterview} />
             )}
 
+            {/* 작성·검토 메인 화면 (미리보기 및 편집 통합) */}
             {activeTab === "publish" && (
-              <PublishPrep article={article} setArticle={setArticle} />
+              <ArticleWriter
+                article={article}
+                setArticle={setArticle}
+                onOpenSearch={() => setShowSearchModal(true)}
+                onRunFactCheck={handleRunFactCheck}
+                factCheckActive={factCheckActive}
+                factCheckIssues={factCheckIssues}
+                activeFactIndex={activeFactIndex}
+                onApplyFactFix={handleApplyFactFix}
+                onSkipFactFix={handleSkipFactFix}
+              />
             )}
 
             {activeTab === "convert" && (

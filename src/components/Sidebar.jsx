@@ -38,7 +38,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setAct
         isCollapsed ? "w-16" : "w-64 md:w-72"
       }`}
     >
-      <div className="w-full h-full py-5 px-2.5 flex flex-col bg-[#F1F3F5] rounded-[28px] border border-slate-200/80 shadow-md shadow-slate-200/40 relative overflow-hidden transition-all duration-300">
+      <div className="w-full h-full py-5 px-2.5 flex flex-col bg-[#F1F3F5]/75 backdrop-blur-xl backdrop-saturate-150 rounded-[28px] border border-white/80 shadow-[0_8px_32px_0_rgba(15,23,42,0.06)] relative overflow-hidden transition-all duration-300">
         
         {/* 1. 상단 브랜드 헤더: ✦ 심볼 + Menu 텍스트 (위치 고정) */}
         <div className="flex items-center h-10 px-0.5 mb-4">

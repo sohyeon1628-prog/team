@@ -8,7 +8,6 @@ import { PenTool, Send, Sparkles, FileCheck2 } from "lucide-react";
 export default function ProcessBar({ activeTab, setActiveTab }) {
   const steps = [
     { id: "writer", label: "작성·검토", icon: PenTool },
-    { id: "publish", label: "발행 준비", icon: Send },
     { id: "convert", label: "플랫폼 변환", icon: Sparkles },
     { id: "archive", label: "보관함", icon: FileCheck2 },
   ];
@@ -31,11 +30,10 @@ export default function ProcessBar({ activeTab, setActiveTab }) {
           <button
             key={step.id}
             onClick={() => setActiveTab(step.id)}
-            className={`transition-all duration-200 cursor-pointer select-none flex items-center justify-center gap-2 h-8 md:h-9 rounded-t-2xl px-4 relative ${
-              active
-                ? "binder-tab-active text-slate-950 font-bold text-xs md:text-sm"
-                : "binder-tab-inactive text-slate-600 hover:text-slate-900 font-medium text-xs md:text-sm"
-            }`}
+            className={`transition-all duration-200 cursor-pointer select-none flex items-center justify-center gap-2.5 h-10 md:h-11 rounded-t-2xl px-5 md:px-6 relative ${active
+              ? "binder-tab-active text-slate-950 font-black text-sm md:text-base shadow-xs"
+              : "binder-tab-inactive text-slate-600 hover:text-slate-950 font-extrabold text-sm md:text-base"
+              }`}
             title={step.label}
           >
             {/* 좌측 하단 메인 박스 연결 오목 곡선 */}
@@ -54,11 +52,10 @@ export default function ProcessBar({ activeTab, setActiveTab }) {
             )}
 
             <div
-              className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors ${
-                active ? "bg-slate-900 text-white" : "text-slate-500"
-              }`}
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${active ? "bg-slate-900 text-white" : "text-slate-500"
+                }`}
             >
-              <Icon className="w-3 h-3" />
+              <Icon className="w-3.5 h-3.5" />
             </div>
             <span>{step.label}</span>
 
