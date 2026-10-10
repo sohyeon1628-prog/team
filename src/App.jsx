@@ -1,30 +1,77 @@
 import React, { useState } from "react";
 import Header from "./components/Header";
-import ProcessBar from "./components/ProcessBar";
 import Sidebar from "./components/Sidebar";
 import ArticleWriter from "./components/ArticleWriter";
 import SourceSearch from "./components/SourceSearch";
 import InterviewStudio from "./components/interview/InterviewStudio";
-import PublishPrep from "./components/PublishPrep";
 import FormatConverter from "./components/FormatConverter";
 import ArchiveView from "./components/ArchiveView";
 
 import { initialArticles, mockFactCheckIssues } from "./data/mockData";
 
+/**
+ * 전체 배경 Soft Ambient Gradient Theme:
+ * - 상단: 아주 은은한 Soft Blue glow (rgba(190, 220, 255, 0.25))
+ * - 중앙: 거의 흰색에 가까운 매우 부드러운 transition
+ * - 하단: 아주 은은한 Soft Lavender glow (rgba(215, 200, 255, 0.22))
+ * - 두 색상이 경계 없이 화면 전체에 공기처럼 넓게 퍼지며 어우러짐
+ */
+const getAmbientGradient = (activeTab, factCheckActive) => {
+  // 기사 작성 및 기본 메인 뷰: 상단 Soft Blue + 하단 Soft Lavender 완벽 블렌딩
+  const editorialSoftGradient = [
+    "radial-gradient(ellipse 95% 55% at 50% -5%, rgba(190, 220, 255, 0.25) 0%, rgba(255, 255, 255, 0) 75%)",
+    "radial-gradient(ellipse 95% 55% at 50% 105%, rgba(215, 200, 255, 0.22) 0%, rgba(255, 255, 255, 0) 75%)",
+    "#FAFAFA"
+  ].join(", ");
+
+  // 03 기사 검증 모드
+  if (activeTab === "factcheck" || (activeTab === "writer" && factCheckActive)) {
+    return [
+      "radial-gradient(ellipse 95% 50% at 50% -5%, rgba(190, 220, 255, 0.16) 0%, rgba(255, 255, 255, 0) 70%)",
+      "radial-gradient(ellipse 85% 65% at 15% 82%, rgba(190, 235, 215, 0.22) 0%, rgba(255, 255, 255, 0) 72%)",
+      "radial-gradient(ellipse 95% 50% at 50% 105%, rgba(215, 200, 255, 0.16) 0%, rgba(255, 255, 255, 0) 70%)",
+      "#FAFAFA"
+    ].join(", ");
+  }
+
+  // 01 STT 모드
+  if (activeTab === "interview") {
+    return [
+      "radial-gradient(ellipse 85% 55% at 20% 10%, rgba(190, 220, 255, 0.26) 0%, rgba(255, 255, 255, 0) 70%)",
+      "radial-gradient(ellipse 85% 50% at 50% 105%, rgba(215, 200, 255, 0.16) 0%, rgba(255, 255, 255, 0) 70%)",
+      "#FAFAFA"
+    ].join(", ");
+  }
+
+  // 04 아카이브 모드
+  if (activeTab === "archive") {
+    return [
+      "radial-gradient(ellipse 95% 50% at 50% -5%, rgba(190, 220, 255, 0.16) 0%, rgba(255, 255, 255, 0) 70%)",
+      "radial-gradient(ellipse 85% 55% at 85% 85%, rgba(250, 225, 200, 0.20) 0%, rgba(255, 255, 255, 0) 72%)",
+      "#FAFAFA"
+    ].join(", ");
+  }
+
+  return editorialSoftGradient;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState("writer");
   const [article, setArticle] = useState(initialArticles[0]);
 
-  // Sidebar collapse state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Sidebar collapse state (기본 상태: 세로로 긴 Slim Sidebar 접힘 상태)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
   // Fact check sequential state
   const [factCheckActive, setFactCheckActive] = useState(false);
-  const [factCheckIssues, setFactCheckIssues] = useState(mockFactCheckIssues);
+  const [factCheckIssues] = useState(mockFactCheckIssues);
   const [activeFactIndex, setActiveFactIndex] = useState(0);
 
   // Quick Source Search Modal inside Article Writer
   const [showSearchModal, setShowSearchModal] = useState(false);
+
+  // Right side tools tab collapse state
+  const [isToolsCollapsed, setIsToolsCollapsed] = useState(false);
 
   const handleRunFactCheck = () => {
     setFactCheckActive(true);
@@ -77,12 +124,26 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-slate-900 selection:text-white">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-[#8ECAE6]/40 selection:text-slate-900 bg-transparent text-[#292929] relative overflow-x-hidden">
+      {/* ──────────────────────────────────────────────────────────
+          Soft Ambient Gradient Background Layer (콘텐츠 뒤 고정 앰비언트 레이어)
+          - 상단 Soft Blue (rgba(190, 220, 255, 0.25))
+          - 중앙 거의 흰색에 가까운 부드러운 transition
+          - 하단 Soft Lavender (rgba(215, 200, 255, 0.22))
+          - transition-all duration-700으로 화면 전환 시 부드러운 빛의 블렌딩 효과
+         ────────────────────────────────────────────────────────── */}
+      <div
+        className="fixed inset-0 pointer-events-none -z-10 transition-all duration-700 ease-out"
+        style={{
+          background: getAmbientGradient(activeTab, factCheckActive),
+        }}
+      />
+
       {/* 1. Top Header */}
       <Header currentArticleTitle={article.title} status={article.status} />
 
-      {/* 2. Main Workspace Layout: Outer Big Glass Box Removed, Sidebar & Main Curvature preserved */}
-      <div className="flex flex-1 w-full relative overflow-x-hidden min-h-[calc(100vh-65px)] p-3 md:p-4 gap-3 md:gap-4">
+      {/* 2. Main Workspace Layout: Floating Slim Sidebar & Warm Minimal Workspace */}
+      <div className="flex flex-1 w-full relative min-h-[calc(100vh-70px)] pl-6 md:pl-8 pr-5 md:pr-7 py-2.5 gap-4 md:gap-6 items-start">
         {/* Left Sidebar attached to edge */}
         <Sidebar
           isCollapsed={isSidebarCollapsed}
@@ -91,69 +152,41 @@ export default function App() {
           setActiveTab={setActiveTab}
         />
 
-        {/* Main Content Wrapper with Top Binder Navigation */}
-        <div className="flex-1 flex flex-col min-w-0 transition-all z-20">
-          {/* Top Process Binder Navigation - 녹음 파일(interview) 화면에서는 숨김 */}
-          {activeTab !== "interview" && (
-            <ProcessBar 
-              activeTab={activeTab}
-              setActiveTab={(tab) => {
-                if (tab === "factcheck") {
-                  handleRunFactCheck();
-                } else {
-                  setActiveTab(tab);
-                }
-              }}
+        {/* Main Content Workspace (우측 여백 없이 전체 너비 자연스럽게 채움) */}
+        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 z-20 relative mr-0">
+          {activeTab === "writer" || activeTab === "publish" || activeTab === "factcheck" ? (
+            <ArticleWriter
+              article={article}
+              setArticle={setArticle}
+              onOpenSearch={() => setShowSearchModal(true)}
+              onRunFactCheck={handleRunFactCheck}
+              factCheckActive={factCheckActive}
+              factCheckIssues={factCheckIssues}
+              activeFactIndex={activeFactIndex}
+              onApplyFactFix={handleApplyFactFix}
+              onSkipFactFix={handleSkipFactFix}
+              isToolsCollapsed={isToolsCollapsed}
+              setIsToolsCollapsed={setIsToolsCollapsed}
             />
-          )}
-
-          {/* Main Content Solid Box */}
-          <main className="main-curved-content flex-1 py-6 px-4 md:px-8 min-w-0 transition-all">
-            {activeTab === "writer" && (
-              <ArticleWriter
-                article={article}
-                setArticle={setArticle}
-                onOpenSearch={() => setShowSearchModal(true)}
-                onRunFactCheck={handleRunFactCheck}
-                factCheckActive={factCheckActive}
-                factCheckIssues={factCheckIssues}
-                activeFactIndex={activeFactIndex}
-                onApplyFactFix={handleApplyFactFix}
-                onSkipFactFix={handleSkipFactFix}
-              />
-            )}
-
-            {activeTab === "search" && (
-              <SourceSearch onConnectToArticle={handleConnectSource} />
-            )}
-
-            {activeTab === "interview" && (
+          ) : activeTab === "interview" ? (
+            <main className="flex-1 py-7 px-5 md:px-10 min-w-0 transition-all z-20">
               <InterviewStudio onReturnToArticle={handleReturnFromInterview} />
-            )}
-
-            {/* 작성·검토 메인 화면 (미리보기 및 편집 통합) */}
-            {activeTab === "publish" && (
-              <ArticleWriter
-                article={article}
-                setArticle={setArticle}
-                onOpenSearch={() => setShowSearchModal(true)}
-                onRunFactCheck={handleRunFactCheck}
-                factCheckActive={factCheckActive}
-                factCheckIssues={factCheckIssues}
-                activeFactIndex={activeFactIndex}
-                onApplyFactFix={handleApplyFactFix}
-                onSkipFactFix={handleSkipFactFix}
-              />
-            )}
-
-            {activeTab === "convert" && (
-              <FormatConverter />
-            )}
-
-            {activeTab === "archive" && (
+            </main>
+          ) : activeTab === "archive" ? (
+            <main className="flex-1 min-w-0 transition-all z-20 py-2">
               <ArchiveView />
-            )}
-          </main>
+            </main>
+          ) : (
+            <main className="main-warm-container flex-1 py-7 px-5 md:px-10 min-w-0 transition-all z-20">
+              {activeTab === "search" && (
+                <SourceSearch onConnectToArticle={handleConnectSource} />
+              )}
+
+              {activeTab === "convert" && (
+                <FormatConverter currentArticle={article} />
+              )}
+            </main>
+          )}
         </div>
       </div>
 
@@ -168,3 +201,4 @@ export default function App() {
     </div>
   );
 }
+

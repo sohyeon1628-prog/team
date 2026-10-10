@@ -1,14 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import FactCheckDrawer from "./FactCheckDrawer";
 import { 
   Sparkles, 
   Search, 
-  CheckCircle2, 
   Check, 
   RotateCcw, 
   Bold, 
   Italic, 
   Quote, 
-  Wand2,
+  Wand2, 
   AlertTriangle,
   Eye,
   Edit3,
@@ -16,17 +16,29 @@ import {
   Image as ImageIcon,
   Upload,
   Send,
-  Download,
-  Info,
-  ExternalLink,
-  ChevronRight,
   Share2,
   Bookmark,
+  ShieldCheck,
+  Bot,
+  Lock,
+  Unlock,
+  Plus,
+  X,
+  GripVertical,
+  Copy,
+  Printer,
+  ImagePlus,
+  Underline,
+  Type,
+  CircleDot,
+  ArrowLeft,
+  MessageSquare,
   Heart,
-  MessageSquare
+  Volume2
 } from "lucide-react";
 
 export default function ArticleWriter({ 
+  locationRequest,
   article, 
   setArticle, 
   onOpenSearch, 
@@ -39,6 +51,9 @@ export default function ArticleWriter({
 }) {
   // 1. 화면 뷰 모드: 'editor' (에디터만) | 'split' (에디터+미리보기 나란히) | 'preview' (미리보기 전체)
   const [viewMode, setViewMode] = useState("editor");
+
+  // 팩트체크 & 근거자료 우측 슬라이더(Drawer) 열림 상태
+  const [isFactCheckDrawerOpen, setIsFactCheckDrawerOpen] = useState(false);
 
   // 2. 미리보기 플랫폼 탭: 'donga' (동아일보 공식 웹) | 'naver' (네이버 뉴스 포털)
   const [previewPlatform, setPreviewPlatform] = useState("donga");
@@ -67,6 +82,109 @@ export default function ArticleWriter({
   // 에디터 서식 및 제목 관련 상태
   const [isTitleHovered, setIsTitleHovered] = useState(false);
   const [isTitleConfirmed, setIsTitleConfirmed] = useState(false);
+  const [isTitleLocked, setIsTitleLocked] = useState(false);
+  const [showTitleAiMenu, setShowTitleAiMenu] = useState(false);
+  const titleAiSuggestions = [
+    "AI 반도체 개척자들... 초거대 AI 시대의 차세대 주도권 경쟁",
+    "국내 팹리스·파운드리 연합, '온디바이스 AI' 생태계 주도 선언",
+    "AI 칩 전쟁 2막, 데이터센터에서 모바일로... K-반도체 승부수",
+    "GPU 품귀 뚫을 차세대 대안... 국산 NPU 기술력 글로벌 호평"
+  ];
+
+  // 부제목 잠금, 다중 슬롯 및 AI 추천 상태
+  const [showSubtitleAiMenu, setShowSubtitleAiMenu] = useState(false);
+  const [subtitles, setSubtitles] = useState(() => [
+    { id: "sub-1", text: "국내 주요 반도체 기업, NPU 및 PIM 기술로 글로벌 시장에 도전장", locked: false },
+    { id: "sub-2", text: "전력 소비 70% 절감·데이터 병목 해소 기술 개발 집중", locked: false }
+  ]);
+  const [draggedSubtitleIndex, setDraggedSubtitleIndex] = useState(null);
+  const [selectedAiSubtitles, setSelectedAiSubtitles] = useState([
+    "국내 주요 반도체 기업, NPU 및 PIM 기술로 글로벌 시장에 도전장",
+    "전력 소비 70% 절감·데이터 병목 해소 기술 개발 집중"
+  ]);
+
+  const subtitleAiSuggestions = [
+    "국내 주요 반도체 기업, NPU 및 PIM 기술로 글로벌 시장에 도전장",
+    "전력 소비 70% 절감·데이터 병목 해소 기술 개발 집중",
+    "글로벌 빅테크 납품 테스트 돌입... 2026년 상용화 목표",
+    "정부 차원의 대규모 실증 사업 및 제조 생태계 지원 확대"
+  ];
+
+  const handleSubtitleChange = (index, value) => {
+    const next = [...subtitles];
+    next[index] = { ...next[index], text: value };
+    setSubtitles(next);
+    setArticle((prev) => ({ ...prev, subtitle: next.map((s) => s.text).filter(Boolean).join("\n") }));
+  };
+
+  const handleToggleSubtitleLock = (index) => {
+    const next = [...subtitles];
+    next[index] = { ...next[index], locked: !next[index].locked };
+    setSubtitles(next);
+  };
+
+  const handleAddSubtitle = () => {
+    if (subtitles.length < 4) {
+      const next = [...subtitles, { id: `sub-${Date.now()}`, text: "", locked: false }];
+      setSubtitles(next);
+    }
+  };
+
+  const handleRemoveSubtitle = (index) => {
+    if (subtitles.length > 1) {
+      const next = subtitles.filter((_, i) => i !== index);
+      setSubtitles(next);
+      setArticle((prev) => ({ ...prev, subtitle: next.map((s) => s.text).filter(Boolean).join("\n") }));
+    }
+  };
+
+  const handleDragStart = (e, index) => {
+    if (subtitles[index].locked) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedSubtitleIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedSubtitleIndex === null || draggedSubtitleIndex === targetIndex) return;
+    if (subtitles[targetIndex].locked || subtitles[draggedSubtitleIndex].locked) {
+      setDraggedSubtitleIndex(null);
+      return;
+    }
+    const next = [...subtitles];
+    const [draggedItem] = next.splice(draggedSubtitleIndex, 1);
+    next.splice(targetIndex, 0, draggedItem);
+    setSubtitles(next);
+    setDraggedSubtitleIndex(null);
+    setArticle((prev) => ({ ...prev, subtitle: next.map((s) => s.text).filter(Boolean).join("\n") }));
+  };
+
+  const handleToggleAiSubtitle = (text) => {
+    setSelectedAiSubtitles((prev) =>
+      prev.includes(text) ? prev.filter((item) => item !== text) : (prev.length < 4 ? [...prev, text] : prev)
+    );
+  };
+
+  const handleApplyAiSubtitles = () => {
+    if (selectedAiSubtitles.length > 0) {
+      const next = selectedAiSubtitles.map((text, i) => ({
+        id: `sub-${i}-${Date.now()}`,
+        text,
+        locked: false
+      }));
+      setSubtitles(next);
+      setArticle((prev) => ({ ...prev, subtitle: selectedAiSubtitles.join("\n") }));
+    }
+    setShowSubtitleAiMenu(false);
+  };
+
   const [selectedText, setSelectedText] = useState("");
   const [floatingToolbarPos, setFloatingToolbarPos] = useState(null);
   const [showDraftModal, setShowDraftModal] = useState(false);
@@ -74,31 +192,83 @@ export default function ArticleWriter({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const editorRef = useRef(null);
+  const bodyInputRef = useRef(null);
+  const handledLocation = useRef(null);
+  const locationText = locationRequest?.claimText || "";
+  const locationIndex = locationText ? article.content.indexOf(locationText) : -1;
+  const uniqueLocation = locationIndex >= 0 && article.content.indexOf(locationText, locationIndex + 1) < 0;
+  const locationNotice = locationRequest?.articleId === article.id
+    ? uniqueLocation ? "데이터맵에서 선택한 문장을 현재 원고에서 강조했습니다." : "현재 원고에서 해당 문장을 하나로 특정할 수 없습니다. 검증 시점의 원고와 현재 내용을 확인해 주세요."
+    : "";
+  useEffect(() => {
+    if (!locationRequest || locationRequest.articleId !== article.id) return;
+    if (handledLocation.current === locationRequest || !uniqueLocation) return;
+    handledLocation.current = locationRequest;
+    const input = bodyInputRef.current;
+    input?.focus();
+    input?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [locationRequest, article.id, uniqueLocation, locationIndex, locationText]);
   const photoInputRef = useRef(null);
+  const toolbarImageInputRef = useRef(null);
 
-  // 텍스트 드래그 선택 서식 툴바
+  // 외부에서 article.content 변경 시 contentEditable 동기화 (초안 생성 등)
+  useEffect(() => {
+    if (bodyInputRef.current && bodyInputRef.current.innerHTML !== (article.content || "")) {
+      if (document.activeElement !== bodyInputRef.current) {
+        bodyInputRef.current.innerHTML = article.content || "";
+      }
+    }
+  }, [article.content]);
+
+  // 텍스트 드래그 선택 서식 툴바 감지 (contentEditable Selection 감지)
   const handleSelection = () => {
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed || !editorRef.current) {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !bodyInputRef.current || !editorRef.current) {
       setFloatingToolbarPos(null);
       setSelectedText("");
       return;
     }
 
-    const text = selection.toString().trim();
-    if (text.length > 0) {
-      setSelectedText(text);
-      const range = selection.getRangeAt(0);
+    // 선택 영역이 본문 에디터 내부인지 확인
+    if (!bodyInputRef.current.contains(sel.anchorNode) || !bodyInputRef.current.contains(sel.focusNode)) {
+      setFloatingToolbarPos(null);
+      setSelectedText("");
+      return;
+    }
+
+    const text = sel.toString().trim();
+    if (!text) {
+      setFloatingToolbarPos(null);
+      setSelectedText("");
+      return;
+    }
+
+    setSelectedText(text);
+
+    try {
+      const range = sel.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       const containerRect = editorRef.current.getBoundingClientRect();
 
       setFloatingToolbarPos({
-        top: Math.max(0, rect.top - containerRect.top - 48),
-        left: Math.max(10, rect.left - containerRect.left + (rect.width / 2) - 120)
+        top: Math.max(10, rect.top - containerRect.top - 46),
+        left: Math.max(10, Math.min(containerRect.width - 220, rect.left - containerRect.left + (rect.width / 2) - 100))
       });
-    } else {
+    } catch (e) {
       setFloatingToolbarPos(null);
     }
+  };
+
+  // 기사 내용 복사 및 출력 핸들러
+  const handleCopyArticle = () => {
+    const fullText = [article.title, article.subtitle, article.content].filter(Boolean).join("\n\n");
+    navigator.clipboard.writeText(fullText).then(() => {
+      alert("기사 내용 전체가 클립보드에 복사되었습니다.");
+    });
+  };
+
+  const handlePrintArticle = () => {
+    window.print();
   };
 
   const handleTitleConfirm = () => {
@@ -136,10 +306,55 @@ export default function ArticleWriter({
     }, 1200);
   };
 
+  // 기본 텍스트 서식 적용 (굵게, 기울임, 밑줄, 글자 크기, 동그라미)
   const applyFormat = (formatType) => {
-    if (!selectedText) return;
-    alert(`선택한 문장 "${selectedText.slice(0, 15)}..." 에 [${formatType}] 서식을 적용했습니다.`);
-    setFloatingToolbarPos(null);
+    if (!bodyInputRef.current) return;
+    bodyInputRef.current.focus();
+
+    if (formatType === "bold") {
+      document.execCommand("bold", false, null);
+    } else if (formatType === "italic") {
+      document.execCommand("italic", false, null);
+    } else if (formatType === "underline") {
+      document.execCommand("underline", false, null);
+    } else if (formatType === "size") {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const parentSpan = range.commonAncestorContainer?.parentElement;
+        if (parentSpan && (parentSpan.style.fontSize === "1.25em" || parentSpan.style.fontSize === "20px")) {
+          parentSpan.style.fontSize = "";
+        } else {
+          const span = document.createElement("span");
+          span.style.fontSize = "1.25em";
+          span.style.fontWeight = "600";
+          try {
+            range.surroundContents(span);
+          } catch (err) {
+            document.execCommand("fontSize", false, "5");
+          }
+        }
+      }
+    } else if (formatType === "bullet") {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const text = range.toString();
+        if (text) {
+          const lines = text.split("\n");
+          const bulleted = lines.map((l) => (l.startsWith("● ") ? l.replace(/^●\s*/, "") : `● ${l}`)).join("\n");
+          range.deleteContents();
+          range.insertNode(document.createTextNode(bulleted));
+        } else {
+          range.insertNode(document.createTextNode("● "));
+        }
+      }
+    }
+
+    // 변경된 HTML 상태 저장
+    if (bodyInputRef.current) {
+      setArticle((prev) => ({ ...prev, content: bodyInputRef.current.innerHTML }));
+    }
   };
 
   // 사진 업로드 핸들러
@@ -168,6 +383,48 @@ export default function ArticleWriter({
     }
   };
 
+  // 텍스트 편집 바(플로팅 툴바) 전용 이미지 파일 첨부 핸들러
+  const handleToolbarImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return; // 파일 선택 취소 시 기존 작성 내용 유지
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvt) => {
+      if (uploadEvt.target?.result) {
+        const newPhoto = {
+          id: `photo-${Date.now()}`,
+          url: uploadEvt.target.result,
+          caption: file.name.replace(/\.[^/.]+$/, ""),
+          source: "직접 첨부",
+          provider: "김동아 기자",
+          ratio: "16:9"
+        };
+        const updatedPhotos = [newPhoto, ...photos];
+        setPhotos(updatedPhotos);
+
+        // 본문 에디터에 사진 렌더링 블록 삽입
+        const photoHtml = `<figure style="margin: 20px 0; text-align: center;" contenteditable="false"><img src="${uploadEvt.target.result}" alt="${file.name}" style="max-width: 100%; border-radius: 12px; margin: 0 auto; display: block; border: 1px solid rgba(0,0,0,0.08);" /><figcaption style="font-size: 11px; color: #64748b; margin-top: 8px; font-weight: 500;">▲ ${newPhoto.caption} (출처: 직접 첨부)</figcaption></figure><p><br></p>`;
+
+        if (bodyInputRef.current) {
+          bodyInputRef.current.focus();
+          document.execCommand("insertHTML", false, photoHtml);
+          setArticle((prev) => ({
+            ...prev,
+            photos: updatedPhotos,
+            content: bodyInputRef.current.innerHTML
+          }));
+        } else {
+          setArticle((prev) => ({
+            ...prev,
+            photos: updatedPhotos
+          }));
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ""; // 동일 파일 재선택 가능하도록 리셋
+  };
+
   // 본문에 사진 태그 삽입
   const handleInsertPhotoToContent = (photo) => {
     const photoTag = `\n\n[사진 삽입: ${photo.caption} (출처: ${photo.source}, 제공: ${photo.provider})]\n\n`;
@@ -189,123 +446,21 @@ export default function ArticleWriter({
   };
 
   return (
-    <div className="w-full space-y-5 animate-float-in">
-
-      {/* ──────────────────────────────────────────
-          1. 최상단 통합 컨트롤 툴바
-          (AI 초안, 자료검색, 팩트체크, 뷰 모드 전환, 미디어 관리, CMS 발행)
-         ────────────────────────────────────────── */}
-      <div className="bg-white/95 rounded-3xl border border-slate-200/90 p-4 md:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
-        
-        {/* 좌측: 기사 작성 도구들 */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            onClick={() => setShowDraftModal(true)}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs md:text-sm transition shadow-xs flex items-center gap-2 cursor-pointer active:scale-95"
-          >
-            <Wand2 className="w-4 h-4 text-amber-300" />
-            <span>AI 기사 초안 생성</span>
-          </button>
-          
-          <button
-            onClick={onOpenSearch}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer flex items-center gap-2"
-          >
-            <Search className="w-4 h-4 text-slate-600" />
-            <span>취재자료 검색</span>
-          </button>
-
-          <button
-            onClick={onRunFactCheck}
-            className={`px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer flex items-center gap-2 ${
-              factCheckActive
-                ? "bg-amber-600 text-white shadow-xs"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80"
-            }`}
-          >
-            <CheckCircle2 className={`w-4 h-4 ${factCheckActive ? "text-white" : "text-emerald-600"}`} />
-            <span>{factCheckActive ? "팩트체크 진행 중..." : "기사 팩트체크"}</span>
-          </button>
-
-          <button
-            onClick={() => setShowPhotoModal(true)}
-            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 rounded-xl text-xs md:text-sm font-bold transition cursor-pointer flex items-center gap-2"
-          >
-            <ImageIcon className="w-4 h-4 text-purple-600" />
-            <span>사진·미디어 편집 ({photos.length})</span>
-          </button>
+    <div className="w-full relative min-w-0 animate-float-in">
+      {locationNotice && (
+        <div role="status" className="rounded-xl border border-blue-100 bg-blue-50/80 p-3 text-xs text-blue-900 mb-4">
+          {locationNotice}
         </div>
+      )}
 
-        {/* 우측: 뷰 모드 전환 및 [CMS 최종 발행] 버튼 */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* 뷰 모드 전환 탭 */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200/70 shadow-inner">
-            <button
-              onClick={() => setViewMode("editor")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "editor"
-                  ? "bg-white text-slate-950 shadow-2xs scale-[1.02]"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="기사 작성 에디터만 넓게 봅니다"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>에디터</span>
-            </button>
+      {/* 메인 좌우 레이아웃: [메인 에디터 박스] 바로 옆에 [우측 사이드바] 밀착 배치 */}
+      <div className={`w-full flex items-start gap-3.5 md:gap-5 min-w-0 ${!isFactCheckDrawerOpen ? "justify-center" : ""}`}>
+        {/* 1. 중앙/좌측 메인 작업 영역: [에디터] / [나란히 보기] / [미리보기] */}
+        <div className={`min-w-0 space-y-5 ${!isFactCheckDrawerOpen && (viewMode === "editor" || viewMode === "preview") ? "w-full max-w-4xl" : "flex-1"}`}>
 
-            <button
-              onClick={() => setViewMode("split")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "split"
-                  ? "bg-white text-slate-950 shadow-2xs scale-[1.02]"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="에디터와 실시간 포털 미리보기를 나란히 봅니다"
-            >
-              <Columns className="w-3.5 h-3.5" />
-              <span>나란히 보기</span>
-            </button>
-
-            <button
-              onClick={() => setViewMode("preview")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "preview"
-                  ? "bg-white text-slate-950 shadow-2xs scale-[1.02]"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-              title="실시간 최종 포털/신문 뷰만 집중해서 봅니다"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>미리보기</span>
-            </button>
-          </div>
-
-          {/* CMS 최종 발행/이관 버튼 */}
-          <button
-            onClick={handleCmsExport}
-            disabled={isCmsExporting}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs md:text-sm rounded-xl transition shadow-sm cursor-pointer flex items-center gap-2 active:scale-95"
-            title="현재 기사를 CMS(신문/포털 송고 시스템)로 최종 발행합니다"
-          >
-            {isCmsExporting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>발행 처리 중...</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4 text-white" />
-                <span>CMS 최종 발행/이관</span>
-              </>
-            )}
-          </button>
-        </div>
-
-      </div>
-
-      {/* 팩트체크 진행 배너 */}
-      {factCheckActive && factCheckIssues.length > 0 && (
-        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-5 shadow-xs space-y-3 animate-float-in">
+          {/* 팩트체크 진행 배너 */}
+          {factCheckActive && factCheckIssues.length > 0 && (
+            <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-5 shadow-xs space-y-3 animate-float-in w-full">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-slate-900 font-extrabold text-sm md:text-base">
               <AlertTriangle className="w-5 h-5 text-amber-600" />
@@ -332,13 +487,13 @@ export default function ArticleWriter({
           <div className="flex items-center justify-end gap-2 pt-1">
             <button
               onClick={onSkipFactFix}
-              className="px-4 py-1.5 text-xs font-bold bg-slate-200/80 hover:bg-slate-300 text-slate-700 rounded-xl transition cursor-pointer"
+              className="px-4 py-1.5 text-xs font-bold bg-[#EFECE6] hover:bg-[#E4DFD7] text-[#23211F] rounded-full border border-[#DDD6CB] transition cursor-pointer"
             >
               건너뛰기
             </button>
             <button
               onClick={onApplyFactFix}
-              className="px-4 py-1.5 text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1"
+              className="px-4 py-1.5 text-xs font-extrabold bg-[#23211F] hover:bg-[#38332E] text-[#FAF8F5] rounded-full transition shadow-xs cursor-pointer flex items-center gap-1 border border-[#23211F]"
             >
               <Check className="w-3.5 h-3.5" />
               수정 적용
@@ -356,147 +511,296 @@ export default function ArticleWriter({
 
         {/* ──────────────────
             [A] 기사 작성 에디터 캔버스 (viewMode가 'editor' 또는 'split'일 때 표시)
+            - Editorial Minimalist 레이아웃 (rounded-[16px], low-contrast border, soft shadow)
            ────────────────── */}
         {(viewMode === "editor" || viewMode === "split") && (
-          <div className="bg-white/95 rounded-3xl border border-slate-200/90 p-6 md:p-8 space-y-6 shadow-xs relative min-h-[640px]">
+          <div className="bg-white/90 backdrop-blur-xs rounded-[16px] border border-black/[0.05] p-6 md:p-8 space-y-6 shadow-[0_4px_24px_rgba(0,0,0,0.03)] relative min-h-[640px] w-full">
             
             {/* 기사 헤드라인 영역 */}
-            <div 
-              className="space-y-2 relative group"
-              onMouseEnter={() => setIsTitleHovered(true)}
-              onMouseLeave={() => setIsTitleHovered(false)}
-            >
-              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+            <div className="space-y-2 relative group">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold h-7">
                 <span>기사 제목</span>
-                {!isTitleConfirmed && (
-                  <span className="text-slate-600 flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-bold border border-slate-200/80">
-                    AI 제안 헤드라인
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {/* AI 버튼 */}
+                  <button
+                    type="button"
+                    onClick={() => setShowTitleAiMenu(!showTitleAiMenu)}
+                    className="px-2 py-1 rounded-md hover:bg-black/5 text-slate-800 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                    title="AI 추천 제목"
+                  >
+                    <Bot className="w-4 h-4 text-slate-700" />
+                    <span className="text-[11px] font-extrabold text-slate-800">AI</span>
+                  </button>
+                </div>
               </div>
 
               <div className="relative">
                 <input
                   type="text"
                   value={article.title}
-                  onChange={(e) => {
-                    setArticle({ ...article, title: e.target.value });
-                    setIsTitleConfirmed(true);
-                  }}
-                  placeholder="기사 제목을 입력하거나 AI 추천을 확인하세요"
-                  className={`w-full text-xl md:text-2xl font-black border-b border-slate-200 pb-3 outline-none transition-colors bg-transparent ${
-                    !isTitleConfirmed ? "text-slate-400 font-bold" : "text-slate-900 font-black"
-                  }`}
+                  onChange={(e) => setArticle({ ...article, title: e.target.value })}
+                  placeholder="기사 제목을 입력하세요"
+                  className="w-full text-2xl md:text-3xl lg:text-[32px] font-black tracking-tight leading-snug border-b border-slate-200 pb-3 outline-none transition-colors bg-transparent text-slate-950 font-black"
                 />
+              </div>
 
-                {(isTitleHovered || !isTitleConfirmed) && (
-                  <div className="absolute right-2 bottom-3 flex items-center gap-1.5 bg-white/95 p-1 rounded-xl shadow-md border border-slate-200 animate-float-in">
-                    {!isTitleConfirmed && (
-                      <button
-                        onClick={handleTitleConfirm}
-                        className="text-xs px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-900 font-bold rounded-lg border border-slate-200 shadow-2xs transition cursor-pointer flex items-center gap-1"
-                      >
-                        <Check className="w-3 h-3 text-emerald-600" />
-                        확정
-                      </button>
-                    )}
+              {/* 제목 하단 글래스모피즘 세로형 AI 추천 패널 (단일 큰 박스) */}
+              {showTitleAiMenu && (
+                <div className="mt-3 p-3.5 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.06)] animate-float-in space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1 border-b border-slate-200/60 pb-2">
+                    <span className="flex items-center gap-1.5">
+                      <Bot className="w-3.5 h-3.5 text-slate-700" />
+                      AI 추천 제목
+                    </span>
                     <button
-                      onClick={handleRegenerateTitle}
-                      className="text-xs px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition cursor-pointer flex items-center gap-1"
+                      type="button"
+                      onClick={() => setShowTitleAiMenu(false)}
+                      className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
                     >
-                      <RotateCcw className="w-3 h-3 text-slate-500" />
-                      다시 생성
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                )}
-              </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                    {titleAiSuggestions.map((st, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setArticle((prev) => ({ ...prev, title: st, suggestedTitle: st }));
+                          setShowTitleAiMenu(false);
+                        }}
+                        className="w-full text-left p-2.5 px-3 rounded-xl hover:bg-slate-100/80 text-xs md:text-sm font-bold text-slate-900 transition cursor-pointer flex items-center gap-2.5 group"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 group-hover:bg-slate-900 transition flex-shrink-0" />
+                        <span className="flex-1 leading-snug">{st}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* 부제 영역 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400 font-semibold">부제 (부제목)</label>
-              <input
-                type="text"
-                value={article.subtitle}
-                onChange={(e) => setArticle({ ...article, subtitle: e.target.value })}
-                placeholder="기사 부제를 입력하세요"
-                className="w-full text-sm md:text-base font-bold text-slate-700 border-b border-slate-200 pb-2 outline-none focus:border-slate-800 bg-transparent transition-colors"
-              />
-            </div>
-
-            {/* 첨부된 사진 썸네일 스트립 (클릭 시 본문 삽입) */}
-            {photos.length > 0 && (
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-extrabold text-slate-700 flex items-center gap-1">
-                    <ImageIcon className="w-3.5 h-3.5 text-slate-500" />
-                    첨부된 사진 ({photos.length}) · 클릭하여 본문에 바로 삽입:
-                  </span>
+            {/* 부제 (부제목) 영역 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold h-7">
+                <span>부제 (부제목)</span>
+                <div className="flex items-center gap-1.5">
+                  {/* AI 버튼 */}
                   <button
-                    onClick={() => setShowPhotoModal(true)}
-                    className="text-blue-600 hover:underline font-bold text-[11px]"
+                    type="button"
+                    onClick={() => setShowSubtitleAiMenu(!showSubtitleAiMenu)}
+                    className="px-2 py-1 rounded-md hover:bg-black/5 text-slate-800 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                    title="AI 추천 부제목"
                   >
-                    + 사진 추가
+                    <Bot className="w-4 h-4 text-slate-700" />
+                    <span className="text-[11px] font-extrabold text-slate-800">AI</span>
                   </button>
                 </div>
-
-                <div className="flex items-center gap-3 overflow-x-auto pb-1">
-                  {photos.map((p) => (
-                    <div
-                      key={p.id}
-                      onClick={() => handleInsertPhotoToContent(p)}
-                      className="flex items-center gap-2.5 p-2 bg-white rounded-xl border border-slate-200 hover:border-slate-900 transition cursor-pointer shadow-2xs group min-w-[200px]"
-                      title="클릭 시 본문 커서 위치에 사진 태그가 삽입됩니다"
-                    >
-                      <img src={p.url} alt="thumb" className="w-12 h-10 object-cover rounded-lg flex-shrink-0" />
-                      <div className="truncate text-xs">
-                        <span className="font-extrabold text-slate-900 block truncate">{p.caption}</span>
-                        <span className="text-[10px] text-slate-400 block">{p.source}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
+
+              {/* 첨부 이미지 스타일의 통 부제목 영역 (좌측 굵은 검정 바 & 통 부제목 텍스트 블록) */}
+              <div className="border-l-[3.5px] border-slate-950 pl-3.5 py-0.5 space-y-1.5 my-2">
+                {subtitles.map((sub, idx) => (
+                  <div key={sub.id || idx}>
+                    <input
+                      type="text"
+                      value={sub.text}
+                      onChange={(e) => handleSubtitleChange(idx, e.target.value)}
+                      placeholder={`부제목 ${idx + 1}`}
+                      className="w-full text-base md:text-lg font-bold text-slate-950 tracking-tight leading-snug bg-transparent outline-none border-none p-0 focus:ring-0 placeholder:text-slate-300"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* 부제목 하단 글래스모피즘 세로형 AI 추천 패널 (단일 큰 박스) */}
+              {showSubtitleAiMenu && (
+                <div className="mt-3 p-3.5 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 shadow-[0_8px_32px_rgba(0,0,0,0.06)] animate-float-in space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1 border-b border-slate-200/60 pb-2">
+                    <span className="flex items-center gap-1.5">
+                      <Bot className="w-3.5 h-3.5 text-slate-700" />
+                      AI 추천 통 부제목
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSubtitleAiMenu(false)}
+                      className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* 2~4줄 완성형 통 부제목 세트(묶음) 영역 */}
+                  {(() => {
+                    const raw = (typeof subtitleSuggest !== "undefined" && subtitleSuggest?.data?.length ? subtitleSuggest.data : subtitleAiSuggestions);
+                    const bundle = raw.length >= 2 ? raw.slice(0, 4) : subtitleAiSuggestions.slice(0, 2);
+                    const applyBundle = () => {
+                      const next = bundle.map((text, i) => ({
+                        id: `sub-${i}-${Date.now()}`,
+                        text,
+                        locked: false
+                      }));
+                      setSubtitles(next);
+                      setSelectedAiSubtitles(bundle);
+                      setArticle((prev) => ({ ...prev, subtitle: bundle.join("\n") }));
+                      setShowSubtitleAiMenu(false);
+                    };
+
+                    return (
+                      <div className="space-y-2">
+                        <div
+                          onClick={applyBundle}
+                          className="p-2.5 rounded-xl hover:bg-slate-100/70 transition cursor-pointer group"
+                          title="클릭하여 적용"
+                        >
+                          <div className="border-l-[3.5px] border-slate-950 pl-3.5 space-y-1.5">
+                            {bundle.map((text, idx) => (
+                              <div key={idx} className="text-xs md:text-sm font-bold text-slate-900 leading-snug">
+                                {text}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 하단 적용 버튼 */}
+                        <div className="flex items-center justify-end pt-1 border-t border-slate-200/50">
+                          <button
+                            type="button"
+                            onClick={applyBundle}
+                            className="px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>적용하기</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+
 
             {/* 본문 텍스트 에디터 */}
             <div className="relative pt-1" ref={editorRef} onMouseUp={handleSelection}>
               <div className="flex items-center justify-between text-xs text-slate-400 font-semibold mb-2">
                 <span>본문 작성 영역 (자유 작성 및 서식 적용)</span>
-                <span>공백 포함 {article.content.length.toLocaleString()}자</span>
+                <span>공백 포함 {(article.content || "").replace(/<[^>]*>/g, "").length.toLocaleString()}자</span>
               </div>
 
-              {/* 드래그 플로팅 툴바 */}
+              {/* 레퍼런스 스타일: 둥근 캡슐형 밝은 톤 플로팅 텍스트 편집 바 */}
               {floatingToolbarPos && (
                 <div
                   style={{ top: `${floatingToolbarPos.top}px`, left: `${floatingToolbarPos.left}px` }}
-                  className="absolute z-30 flex items-center gap-1 bg-slate-900 text-white px-2 py-1.5 rounded-xl shadow-xl border border-slate-700 animate-float-in text-xs"
+                  className="absolute z-30 flex items-center gap-1 bg-white/95 backdrop-blur-md px-2 py-1.5 rounded-full shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.06)] border border-slate-200/90 animate-float-in text-xs"
                 >
-                  <button onClick={() => applyFormat("굵게")} className="p-1 hover:bg-slate-800 rounded-md" title="굵게">
-                    <Bold className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => applyFormat("기울임")} className="p-1 hover:bg-slate-800 rounded-md" title="기울임">
-                    <Italic className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => applyFormat("인용구")} className="p-1 hover:bg-slate-800 rounded-md" title="인용구">
-                    <Quote className="w-3.5 h-3.5" />
-                  </button>
-                  <div className="w-[1px] h-4 bg-slate-700 my-auto mx-1" />
+                  {/* 숨겨진 이미지 파일 입력 창 (취소 시 기존 본문 유지) */}
+                  <input
+                    ref={toolbarImageInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, image/webp, image/gif"
+                    className="hidden"
+                    onChange={handleToolbarImageSelect}
+                  />
+
+                  {/* 1. 굵게 (B) */}
                   <button
-                    onClick={() => applyFormat("AI 다듬기")}
-                    className="p-1 px-2 hover:bg-blue-600 rounded-md transition flex items-center gap-1 text-blue-300 font-bold"
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyFormat("bold"); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white hover:shadow-xs hover:border hover:border-slate-200/70 transition-all cursor-pointer group relative active:scale-95"
+                    title="굵게"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    AI 문장 다듬기
+                    <Bold className="w-3.5 h-3.5" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-md z-40">
+                      굵게
+                    </span>
+                  </button>
+
+                  {/* 2. 기울임 (I) */}
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyFormat("italic"); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white hover:shadow-xs hover:border hover:border-slate-200/70 transition-all cursor-pointer group relative active:scale-95"
+                    title="기울임"
+                  >
+                    <Italic className="w-3.5 h-3.5" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-md z-40">
+                      기울임
+                    </span>
+                  </button>
+
+                  {/* 3. 밑줄 (U) */}
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyFormat("underline"); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white hover:shadow-xs hover:border hover:border-slate-200/70 transition-all cursor-pointer group relative active:scale-95"
+                    title="밑줄"
+                  >
+                    <Underline className="w-3.5 h-3.5" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-md z-40">
+                      밑줄
+                    </span>
+                  </button>
+
+                  {/* 미니 구분선 */}
+                  <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
+
+                  {/* 4. 글자 크기 */}
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyFormat("size"); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white hover:shadow-xs hover:border hover:border-slate-200/70 transition-all cursor-pointer group relative active:scale-95"
+                    title="글자 크기"
+                  >
+                    <Type className="w-3.5 h-3.5" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-md z-40">
+                      글자 크기
+                    </span>
+                  </button>
+
+                  {/* 5. 동그라미 불릿 */}
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); applyFormat("bullet"); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white hover:shadow-xs hover:border hover:border-slate-200/70 transition-all cursor-pointer group relative active:scale-95"
+                    title="동그라미 목록"
+                  >
+                    <CircleDot className="w-3.5 h-3.5" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-md z-40">
+                      동그라미
+                    </span>
+                  </button>
+
+                  {/* 미니 구분선 */}
+                  <div className="w-[1px] h-3.5 bg-slate-200 mx-0.5" />
+
+                  {/* 6. 이미지 첨부 버튼 (단색 라인 아이콘) */}
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      toolbarImageInputRef.current?.click();
+                    }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-slate-950 hover:bg-white hover:shadow-xs hover:border hover:border-slate-200/70 transition-all cursor-pointer group relative active:scale-95"
+                    title="이미지 첨부"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 text-slate-700" />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-900 text-white text-[10px] font-bold px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none shadow-md z-40">
+                      이미지 첨부
+                    </span>
                   </button>
                 </div>
               )}
 
-              <textarea
-                value={article.content}
-                onChange={(e) => setArticle({ ...article, content: e.target.value })}
-                placeholder="기사 본문을 입력하세요. 자유롭게 문단을 작성할 수 있습니다..."
-                className="w-full min-h-[460px] text-slate-900 text-xs md:text-sm leading-relaxed p-5 bg-slate-50/70 rounded-2xl border border-slate-200 focus:bg-white focus:border-slate-800 outline-none transition-all resize-y shadow-2xs font-sans"
+              <div
+                ref={bodyInputRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={(e) => setArticle((prev) => ({ ...prev, content: e.currentTarget.innerHTML }))}
+                onMouseUp={handleSelection}
+                onKeyUp={handleSelection}
+                data-placeholder="기사 본문을 입력하세요. 자유롭게 문단을 작성할 수 있습니다..."
+                className="w-full min-h-[460px] text-slate-900 text-xs md:text-sm leading-relaxed p-5 bg-slate-50/50 rounded-xl border border-black/[0.06] focus:bg-white focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 outline-none transition-all shadow-2xs font-sans empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 cursor-text overflow-y-auto"
               />
             </div>
 
@@ -505,148 +809,272 @@ export default function ArticleWriter({
 
         {/* ──────────────────
             [B] 실시간 포털/신문 미리보기 캔버스 (viewMode가 'preview' 또는 'split'일 때 표시)
+            - Editorial Minimalist 레이아웃 (rounded-[16px], low-contrast border, soft shadow)
+           ────────────────── */}
+        {/* ──────────────────
+            [B] 동아일보 실제 뉴스 사이트 미리보기 (순수 흰색 배경, 네이버 및 불필요한 프레임 박스 제거)
            ────────────────── */}
         {(viewMode === "preview" || viewMode === "split") && (
-          <div className="bg-white/95 rounded-3xl border border-slate-200/90 p-5 md:p-8 space-y-5 shadow-xs">
-            
-            {/* 미리보기 상단 플랫폼 전환 탭 (동아일보 vs 네이버 뉴스) */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs md:text-sm font-extrabold text-slate-900">
-                  실시간 독자 화면 미리보기
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                <button
-                  onClick={() => setPreviewPlatform("donga")}
-                  className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                    previewPlatform === "donga"
-                      ? "bg-slate-900 text-white shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  동아일보 웹
-                </button>
-                <button
-                  onClick={() => setPreviewPlatform("naver")}
-                  className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
-                    previewPlatform === "naver"
-                      ? "bg-emerald-600 text-white shadow-2xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  네이버 뉴스
-                </button>
-              </div>
+          <div className="w-full bg-white rounded-2xl border border-slate-100 p-6 md:p-10 shadow-xs space-y-6">
+            {/* 상단: 기사작성으로 돌아가기 버튼 */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <button
+                type="button"
+                onClick={() => setViewMode("editor")}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>기사작성으로 돌아가기</span>
+              </button>
+              <span className="text-xs text-slate-400 font-medium">동아일보 공식 웹 뉴스 뷰</span>
             </div>
 
-            {/* 실제 미리보기 프레임 */}
-            <div className="bg-slate-100/70 p-4 md:p-6 rounded-3xl border border-slate-200 shadow-inner">
-              
-              {/* 1. 동아일보 공식 웹 뉴스 뷰 */}
-              {previewPlatform === "donga" && (
-                <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6 md:p-8 space-y-5 max-w-2xl mx-auto animate-float-in">
-                  {/* 동아 브랜드 헤더 */}
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-3 text-xs">
-                    <span className="font-serif font-black text-slate-900 text-lg tracking-wider">
-                      東亞日報
-                    </span>
-                    <span className="text-slate-400 font-medium">경제 · IT 산업</span>
+            {/* 동아일보 실제 뉴스 웹사이트 레이아웃 (첨부 레퍼런스 스타일 100% 반영) */}
+            <div className="max-w-2xl mx-auto space-y-6 animate-float-in">
+              {/* 카테고리 네비게이션 */}
+              <div className="flex items-center gap-1.5 text-xs font-bold text-teal-700">
+                <span>정치</span>
+                <span className="text-slate-300 font-normal">&gt;</span>
+                <span>2026 국정감사</span>
+              </div>
+
+              {/* 기사 헤드라인 제목 (동아일보 정통 명조) */}
+              <h1 
+                style={{ fontFamily: "'Nanum Myeongjo', Batang, serif", wordBreak: "keep-all", letterSpacing: "-0.02em" }}
+                className="text-2xl md:text-3xl lg:text-[32px] font-bold text-slate-950 leading-snug tracking-tight"
+              >
+                {article.title || "기사 제목이 이곳에 표시됩니다"}
+              </h1>
+
+              {/* 메타 정보 바 (신문사, 업데이트 일자, 구글검색 선호 등) */}
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-1 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-800">동아일보</span>
+                  <span className="text-slate-300">|</span>
+                  <span>업데이트 2026-10-10 07:28</span>
+                </div>
+                <div className="hidden sm:flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-slate-200 text-slate-600 bg-slate-50/50">
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span>구글검색 선호 추가</span>
+                </div>
+              </div>
+
+              {/* 반응 및 액션 아이콘 줄 */}
+              <div className="flex items-center justify-between py-2.5 border-y border-slate-100 text-xs text-slate-600">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <MessageSquare className="w-4 h-4 text-slate-500" />
+                    <span className="font-bold text-slate-700">39</span>
                   </div>
-
-                  {/* 제목 & 부제 */}
-                  <div className="space-y-2">
-                    <h2 className="text-xl md:text-2xl font-black text-slate-950 leading-tight">
-                      {article.title || "기사 제목이 이곳에 표시됩니다"}
-                    </h2>
-                    {article.subtitle && (
-                      <p className="text-xs md:text-sm font-bold text-slate-600 leading-relaxed">
-                        {article.subtitle}
-                      </p>
-                    )}
+                  <div className="flex items-center gap-1.5">
+                    <Heart className="w-4 h-4 text-slate-500" />
+                    <span className="font-bold text-slate-700">8</span>
                   </div>
+                </div>
+                <div className="flex items-center gap-3 text-slate-500">
+                  <button type="button" className="p-1 hover:text-slate-900 transition"><Share2 className="w-4 h-4" /></button>
+                  <button type="button" className="p-1 hover:text-slate-900 transition"><Bookmark className="w-4 h-4" /></button>
+                  <button type="button" className="p-1 hover:text-slate-900 transition"><Volume2 className="w-4 h-4" /></button>
+                  <button type="button" className="p-1 hover:text-slate-900 transition" onClick={() => window.print()}><Printer className="w-4 h-4" /></button>
+                </div>
+              </div>
 
-                  {/* 바이라인 & 작성일자 */}
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-slate-800">김동아 기자</span>
-                      <span>|</span>
-                      <span>입력 2026-10-02 17:00</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Bookmark className="w-3.5 h-3.5 text-slate-400" />
-                      <Share2 className="w-3.5 h-3.5 text-slate-400" />
-                    </div>
-                  </div>
-
-                  {/* 기사 대표 사진 (있을 경우) */}
-                  {photos.length > 0 && (
-                    <div className="space-y-1.5">
-                      <div className="aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                        <img src={photos[0].url} alt="main article" className="w-full h-full object-cover" />
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        ▲ {photos[0].caption} (출처: {photos[0].source})
-                      </p>
-                    </div>
-                  )}
-
-                  {/* 기사 본문 줄글 */}
-                  <div className="text-xs md:text-sm text-slate-800 leading-loose whitespace-pre-line font-serif space-y-4 pt-1">
-                    {article.content || "기사 본문 내용이 실시간으로 렌더링됩니다..."}
+              {/* 부제목 (동아일보 특유의 좌측 굵은 검은색 바 스타일 및 명조 서체) */}
+              {article.subtitle && (
+                <div className="border-l-[3.5px] border-slate-950 pl-3.5 py-1">
+                  <div 
+                    style={{ fontFamily: "'Nanum Myeongjo', Batang, 'Pretendard', sans-serif", wordBreak: "keep-all", letterSpacing: "-0.015em" }}
+                    className="text-sm md:text-base font-bold text-slate-900 leading-relaxed whitespace-pre-line"
+                  >
+                    {article.subtitle}
                   </div>
                 </div>
               )}
 
-              {/* 2. 네이버 뉴스 포털 뷰 */}
-              {previewPlatform === "naver" && (
-                <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-5 md:p-7 space-y-4 max-w-2xl mx-auto animate-float-in">
-                  {/* 네이버 뉴스 뱃지 */}
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-md bg-emerald-500 text-white font-black text-xs flex items-center justify-center">
-                        N
-                      </span>
-                      <span className="font-extrabold text-xs text-slate-900">네이버 뉴스 · IT/과학</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">포털 송고 규격</span>
+              {/* 대표 이미지 (있을 경우) */}
+              {photos.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <div className="rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                    <img src={photos[0].url} alt="main article" className="w-full h-auto object-cover" />
                   </div>
-
-                  {/* 제목 */}
-                  <h2 className="text-lg md:text-xl font-black text-slate-950 leading-snug">
-                    {article.title || "기사 제목이 표시됩니다"}
-                  </h2>
-
-                  {/* 언론사 및 바이라인 */}
-                  <div className="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-100">
-                    <span className="font-bold text-slate-900">동아일보</span>
-                    <span className="text-[11px]">2026.10.02. 오후 5:00</span>
-                  </div>
-
-                  {/* 대표 이미지 */}
-                  {photos.length > 0 && (
-                    <div className="space-y-1">
-                      <div className="aspect-video rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                        <img src={photos[0].url} alt="naver news media" className="w-full h-full object-cover" />
-                      </div>
-                      <span className="text-[10px] text-slate-400 block">{photos[0].caption}</span>
-                    </div>
-                  )}
-
-                  {/* 본문 */}
-                  <div className="text-xs md:text-sm text-slate-900 leading-relaxed whitespace-pre-line font-sans pt-1">
-                    {article.content || "작성된 기사 본문이 포털 양식으로 미리보기됩니다."}
-                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    ▲ {photos[0].caption} (출처: {photos[0].source})
+                  </p>
                 </div>
               )}
 
+              {/* 본문 (동아일보 정통 신문 명조 서체 & 실제 기사 행간) */}
+              <div
+                style={{
+                  fontFamily: "'Nanum Myeongjo', Batang, serif",
+                  wordBreak: "keep-all",
+                  lineHeight: "1.9",
+                  letterSpacing: "-0.015em",
+                  fontSize: "1.05rem"
+                }}
+                className="text-slate-800 space-y-4 pt-2"
+                dangerouslySetInnerHTML={{ __html: article.content || "기사 본문 내용이 실시간으로 렌더링됩니다..." }}
+              />
             </div>
-
           </div>
         )}
 
+          {/* grid 닫기 */}
+          </div>
+
+        {/* 좌측 컬럼 flex-1 닫기 */}
+        </div>
+
+        {/* [우측 컬럼]: 팩트체크 & 근거자료 검증 패널 (나란히 인라인 배치되어 절대 겹치지 않음) */}
+        {isFactCheckDrawerOpen && (
+          <FactCheckDrawer
+            isOpen={isFactCheckDrawerOpen}
+            onClose={() => setIsFactCheckDrawerOpen(false)}
+            article={article}
+            setArticle={setArticle}
+          />
+        )}
+
+        {/* 기사 작성 화면 메인 박스 오른쪽 상단 옆에 위치한 사이드바 */}
+        {/* 기사 작성 화면 메인 박스 오른쪽 상단 바로 옆에 위치한 일관된 캡슐형 Hover 확장 사이드바 (미리보기 화면에서는 숨김) */}
+        {viewMode !== "preview" && (
+          <aside className="sticky top-6 flex-shrink-0 z-30 select-none">
+            <div className="flex flex-col items-start gap-2">
+              {/* 1. 사진 첨부 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoModal(true)}
+                  className="absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border border-slate-200/90 bg-white/95 backdrop-blur-md text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                >
+                  <ImagePlus className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    사진 첨부
+                  </span>
+                </button>
+              </div>
+
+              {/* 2. 미리보기 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={() => setViewMode(viewMode === "preview" ? "editor" : "preview")}
+                  className={`absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border backdrop-blur-md ${
+                    viewMode === "preview"
+                      ? "bg-slate-100/90 border-slate-800 text-slate-950 font-black shadow-xs"
+                      : "bg-white/95 border-slate-200/90 text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                  }`}
+                >
+                  <Eye className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    독자 화면 미리보기
+                  </span>
+                </button>
+              </div>
+
+              {/* 3. 복사하기 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={handleCopyArticle}
+                  className="absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border border-slate-200/90 bg-white/95 backdrop-blur-md text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                >
+                  <Copy className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    기사 복사하기
+                  </span>
+                </button>
+              </div>
+
+              {/* 4. 출력하기 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={handlePrintArticle}
+                  className="absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border border-slate-200/90 bg-white/95 backdrop-blur-md text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                >
+                  <Printer className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    기사 출력하기
+                  </span>
+                </button>
+              </div>
+
+              {/* 미니 구분선 */}
+              <div className="w-6 h-[1px] bg-slate-200/80 my-0.5 ml-2" />
+
+              {/* 5. AI 기사 초안 생성 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={() => setShowDraftModal(true)}
+                  className="absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border border-slate-200/90 bg-white/95 backdrop-blur-md text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                >
+                  <Wand2 className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    AI 기사 초안 생성
+                  </span>
+                </button>
+              </div>
+
+              {/* 6. 취재자료 검색 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={onOpenSearch}
+                  className="absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border border-slate-200/90 bg-white/95 backdrop-blur-md text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                >
+                  <Search className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    취재자료 검색
+                  </span>
+                </button>
+              </div>
+
+              {/* 7. 기사 팩트체크 & 근거자료 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFactCheckDrawerOpen(true);
+                    if (onRunFactCheck) onRunFactCheck();
+                  }}
+                  className={`absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border backdrop-blur-md ${
+                    factCheckActive || isFactCheckDrawerOpen
+                      ? "bg-slate-100/90 border-slate-800 text-slate-950 font-black shadow-xs"
+                      : "bg-white/95 border-slate-200/90 text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                  }`}
+                >
+                  <ShieldCheck className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[180px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    기사 팩트체크 & 근거자료
+                  </span>
+                </button>
+              </div>
+
+              {/* 8. 에디터 전용 보기 */}
+              <div className="relative w-10 h-10 group">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("editor")}
+                  className={`absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border backdrop-blur-md ${
+                    viewMode === "editor"
+                      ? "bg-slate-100/90 border-slate-800 text-slate-950 font-black shadow-xs"
+                      : "bg-white/95 border-slate-200/90 text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
+                  }`}
+                >
+                  <Edit3 className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
+                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
+                    에디터 전용 보기
+                  </span>
+                </button>
+              </div>
+
+            </div>
+          </aside>
+        )}
+
+      {/* 메인 flex 컨테이너 닫기 */}
       </div>
 
       {/* ──────────────────────────────────────────
@@ -851,14 +1279,14 @@ export default function ArticleWriter({
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setShowDraftModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer"
+                className="px-4 py-2 bg-[#EFECE6] hover:bg-[#E4DFD7] text-[#23211F] border border-[#DDD6CB] text-xs font-bold rounded-full transition cursor-pointer"
               >
                 취소
               </button>
               <button
                 onClick={handleGenerateDraft}
                 disabled={isGenerating}
-                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer flex items-center gap-2"
+                className="px-5 py-2 bg-[#23211F] hover:bg-[#38332E] text-[#FAF8F5] text-xs font-bold rounded-full transition shadow-xs cursor-pointer flex items-center gap-2 border border-[#23211F]"
               >
                 {isGenerating ? (
                   <>
@@ -876,6 +1304,7 @@ export default function ArticleWriter({
           </div>
         </div>
       )}
+
 
     </div>
   );
