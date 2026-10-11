@@ -29,6 +29,19 @@ function formatDuration(seconds) {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+// 초 단위를 '0분 0초' 형태의 시각화 문자열로 포맷팅
+function formatMinSecKorean(seconds) {
+  if (isNaN(seconds) || seconds < 0) return "0분 0초";
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) {
+    return `${h}시간 ${m}분 ${s}초`;
+  }
+  return `${m}분 ${s}초`;
+}
+
 // 디자인 레퍼런스(Skiff Mail 스타일의 통합 2-Column 인터페이스) 초기 데이터
 const DEFAULT_DEMO_DATA = {
   fileName: "2026_AI반도체_심층인터뷰_현장녹취.m4a",
@@ -114,6 +127,25 @@ export default function InterviewStudio({ onReturnToArticle }) {
   const [duration, setDuration] = useState(DEFAULT_DEMO_DATA.duration);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+
+  // 재생바 호버 시 미리보기 분초 상태
+  const [hoverTime, setHoverTime] = useState(null);
+  const [hoverPercent, setHoverPercent] = useState(0);
+
+  const handleProgressMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width > 0) {
+      const offsetX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+      const pct = (offsetX / rect.width) * 100;
+      const targetSec = (offsetX / rect.width) * (duration || 1);
+      setHoverPercent(pct);
+      setHoverTime(targetSec);
+    }
+  };
+
+  const handleProgressMouseLeave = () => {
+    setHoverTime(null);
+  };
 
   // 4. 복사 피드백 상태
   const [copiedId, setCopiedId] = useState(null);
@@ -398,10 +430,29 @@ export default function InterviewStudio({ onReturnToArticle }) {
 
           {/* 음각 프로그레스 슬라이더 트랙 & 시각적 진행 게이지 */}
           <div className="space-y-1.5">
-            <div className="relative flex items-center w-full h-4 group">
+            <div 
+              className="relative flex items-center w-full h-5 group"
+              onMouseMove={handleProgressMouseMove}
+              onMouseLeave={handleProgressMouseLeave}
+            >
+              {/* 호버 시 커서 위치에 분/초 미리보기 툴팁 팝업 */}
+              {hoverTime !== null && (
+                <div
+                  className="absolute -top-11 -translate-x-1/2 pointer-events-none z-30 transition-all duration-75 flex flex-col items-center animate-in fade-in zoom-in-95 duration-100"
+                  style={{ left: `${Math.min(92, Math.max(8, hoverPercent))}%` }}
+                >
+                  <div className="bg-slate-900/95 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xl border border-slate-700/80 whitespace-nowrap flex items-center gap-1.5 backdrop-blur-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                    <span>미리보기: {formatMinSecKorean(hoverTime)}</span>
+                    <span className="text-slate-400 font-normal">| 현재 {formatMinSecKorean(currentTime)}</span>
+                  </div>
+                  <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700/80" />
+                </div>
+              )}
+
               {/* 트랙 베이스 */}
               <div
-                className="w-full h-2 bg-[#E2E8F0] rounded-full overflow-hidden relative"
+                className="w-full h-2.5 bg-[#E2E8F0] rounded-full overflow-hidden relative cursor-pointer"
                 style={{
                   boxShadow: "inset 1px 1px 3px rgba(166, 180, 200, 0.4), inset -1px -1px 3px rgba(255, 255, 255, 0.9)"
                 }}
@@ -411,6 +462,14 @@ export default function InterviewStudio({ onReturnToArticle }) {
                   className="h-full bg-slate-900 rounded-full transition-all duration-75"
                   style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
                 />
+
+                {/* 호버 가이드 세로선 */}
+                {hoverTime !== null && (
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-cyan-500/80 pointer-events-none z-10"
+                    style={{ left: `${hoverPercent}%` }}
+                  />
+                )}
               </div>
 
               {/* 투명 range input으로 부드러운 드래그/시크 조작 지원 */}
@@ -421,7 +480,7 @@ export default function InterviewStudio({ onReturnToArticle }) {
                 value={currentTime}
                 onChange={handleSliderSeek}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                title={`재생 위치: ${formatDuration(currentTime)} (${Math.round((currentTime / (duration || 1)) * 100)}%)`}
+                title={`재생 위치: ${formatMinSecKorean(currentTime)} / 전체 ${formatMinSecKorean(duration)}`}
               />
 
               {/* 드래그 핸들 썸브 시각 인디케이터 (현재 재생 위치) */}
@@ -433,13 +492,40 @@ export default function InterviewStudio({ onReturnToArticle }) {
               />
             </div>
 
-            {/* 분량 진행도 시각 인디케이터 (시작 시각, 진행률, 전체 시각) */}
-            <div className="flex items-center justify-between text-[10px] font-mono font-medium text-slate-600 px-0.5">
-              <span>00:00:00</span>
-              <span className="font-sans font-bold text-slate-800 bg-white/70 px-2 py-0.5 rounded-full border border-slate-200/60 shadow-2xs">
-                {Math.round(((currentTime || 0) / (duration || 1)) * 100)}% 재생됨
+            {/* 녹음 길이(duration) 구간별 분과 초 눈금 시각화 (0%, 25%, 50%, 75%, 100%) */}
+            <div className="relative w-full h-4 mt-1 px-1">
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                const sec = (duration || 0) * ratio;
+                const isFirst = idx === 0;
+                const isLast = idx === 4;
+                return (
+                  <div
+                    key={ratio}
+                    className="absolute top-0 flex flex-col items-center pointer-events-none"
+                    style={{
+                      left: `${ratio * 100}%`,
+                      transform: isFirst ? "translateX(0%)" : isLast ? "translateX(-100%)" : "translateX(-50%)"
+                    }}
+                  >
+                    <span className="w-[1px] h-1.5 bg-slate-300 mb-0.5" />
+                    <span className="text-[10px] font-mono text-slate-500 font-medium whitespace-nowrap">
+                      {formatMinSecKorean(sec)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 분량 진행도 시각 인디케이터: 퍼센테이지 제거 & 실시간 재생 분/초 시각화 */}
+            <div className="flex items-center justify-between text-[11px] text-slate-600 px-0.5 pt-2">
+              <span className="font-mono text-slate-500 font-medium">시작 (0분 0초)</span>
+              <span className="font-sans font-bold text-slate-900 bg-white/90 px-3 py-1 rounded-full border border-slate-200/90 shadow-2xs flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${isPlaying ? "bg-emerald-500 animate-pulse" : "bg-slate-400"}`} />
+                <span>재생 중: {formatMinSecKorean(currentTime)}</span>
+                <span className="text-slate-300">/</span>
+                <span className="text-slate-500 font-medium">전체 {formatMinSecKorean(duration)}</span>
               </span>
-              <span>{formatDuration(duration)}</span>
+              <span className="font-mono text-slate-500 font-medium">전체 ({formatMinSecKorean(duration)})</span>
             </div>
           </div>
         </div>

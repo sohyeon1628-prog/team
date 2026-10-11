@@ -27,7 +27,23 @@ import {
   ChevronRight,
   Copy,
   Printer,
-  Move
+  Move,
+  Heart,
+  MessageCircle,
+  Bookmark,
+  Share2,
+  Hash,
+  Save,
+  FolderOpen,
+  FileUp,
+  Search,
+  Newspaper,
+  AlertCircle,
+  ExternalLink,
+  ShieldCheck,
+  Send,
+  Repeat,
+  MoreHorizontal
 } from "lucide-react";
 import { searchUnsplashPhotos } from "../services/unsplash";
 
@@ -96,13 +112,238 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
     ? activeArticle.content.split(/\n\n+/).filter(Boolean)[0]?.replace(/\[사진 삽입:.*?\]/g, "").trim()
     : "";
 
-  // 1. 배포 플랫폼 선택 상태 (다중 선택 가능)
-  const [selectedPlatforms, setSelectedPlatforms] = useState(["instagram", "threads"]);
+  // 1. 배포 플랫폼 선택 상태 및 활성 편집 플랫폼 (기본값: instagram, 왼쪽 '카드뉴스' 클릭 시 카드뉴스 화면 활성화)
+  const [activePlatform, setActivePlatform] = useState("instagram");
+  const [selectedPlatforms, setSelectedPlatforms] = useState(["instagram", "threads", "cardnews"]);
   const togglePlatform = (id) => {
     setSelectedPlatforms((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
   };
+
+  // 인스타그램 배포 전용 상태
+  const [instagramCaption, setInstagramCaption] = useState("");
+  const [instagramHashtags, setInstagramHashtags] = useState([
+    "#뉴스", "#단독", "#속보", "#AI미디어", "#트렌드", "#헤드라인"
+  ]);
+  const [newHashtagInput, setNewHashtagInput] = useState("");
+  const [isInstagramCopied, setIsInstagramCopied] = useState(false);
+  const [isInstagramLiked, setIsInstagramLiked] = useState(false);
+  const [instagramLikeCount, setInstagramLikeCount] = useState(1284);
+  const [instagramImage, setInstagramImage] = useState(
+    "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=1000&q=80"
+  );
+  const [instagramAspectRatio, setInstagramAspectRatio] = useState("4:5"); // "4:5" | "1:1"
+  const platformFileInputRef = useRef(null);
+
+  // 스레드(Threads) 배포 전용 상태
+  const [threadsList, setThreadsList] = useState([
+    { id: 1, content: "" },
+    { id: 2, content: "" }
+  ]);
+  const [isThreadsCopied, setIsThreadsCopied] = useState(false);
+  const [isThreadsLiked, setIsThreadsLiked] = useState(false);
+  const [threadsLikeCount, setThreadsLikeCount] = useState(342);
+
+  // ─── [뉴스 카드 편집실: 원고 검수 & 문단별 편집 & 연동 상태] ───
+  const [draftSections, setDraftSections] = useState({
+    intro: "러시아의 한 페스트 방역연구소 소속 연구원이 원인불명 폐렴으로 숨지면서 실험실 유출 의혹과 함께 불안이 고조되고 있습니다.",
+    body1: "이르쿠츠크 페스트 방역연구소의 다리아 시밀로바 연구원은 지난달 29일 중증 폐렴 증상으로 입원해 치료를 받았으나 이달 2일 숨졌습니다.",
+    body2: "숨진 직후 동료 사흐루비 연구원이 사후 체취 과정에서 페스트 병원체가 든 시험관을 실수로 깨뜨린 것이 사망 원인일 수 있다고 전했습니다.",
+    body3: "세계보건기구(WHO)는 대중적 위험성은 낮다고 밝혔으나 미국과 유럽연합 보건당국은 신속하고 투명한 정보 공개를 촉구했습니다.",
+    outro: "일각에서는 전 세계 질병연구소에 대한 감시 부족 우려를 제기하며 러시아의 투명한 정보 공개를 요구하고 있습니다.",
+    hashtags: "#페스트균 #러시아연구원 #치사성 #WHO #신종병"
+  });
+
+  // 각 문단별 원문 근거 펼침 상태
+  const [expandedSources, setExpandedSources] = useState({});
+  const toggleSource = (key) => {
+    setExpandedSources((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // 전체 원고의 원문 근거 펼침 상태
+  const [isAllSourceExpanded, setIsAllSourceExpanded] = useState(false);
+
+  // 팩트체크 수정사항 데이터 및 적용 상태
+  const [factCheckIssues, setFactCheckIssues] = useState([
+    {
+      id: "fc-1",
+      target: "draft.도입",
+      title: "발생장소",
+      reason: "본문에 없는 발생장소가 언급되었거나 기업명을 사용했습니다.",
+      correction: "발생 장소의 정보를 기관명의 발원장소로 수정합니다.",
+      evidence: "이르쿠츠크 리스트 방역연구소의 위치가 시베리아 연방관구의 러시아 29개 주와 유대인 자치주 관할에 입각했다.",
+      applied: false
+    },
+    {
+      id: "fc-2",
+      target: "draft.본문 3",
+      title: "미국과 유럽연합 보건당국은 신속하고 투명한 정보 공개를 촉구했습니다.",
+      reason: "본문에서 미국 외의 보건당국은 사안을 예의주시하고 있다고 했으며, 신속하고 투명한 정보 공개 촉구 주체는 별도의 보도 자료 및 인물들의 발언으로 구성되어 있어 오해를 배제했습니다.",
+      correction: "본문의 취지에 맞게 내부의 보건청장 모니터링 사업을 예의주시하고 있다고 수정합니다.",
+      reflected: "유럽질병관리센터 대변인은... 사실을 예의주시하고 있다.",
+      source: '"신속연구 투명성 정보 공개하라"',
+      applied: false
+    }
+  ]);
+
+  // 각 단락별 원문 근거 매핑
+  const sectionEvidenceMap = {
+    intro: {
+      label: "페스트균의 원문 근거",
+      evidence: "기사 원문 1단락: 러시아 시베리아 지역 연구소 직원이 페스트 관련 증상으로 사망해 보건당국이 조사에 착수했다..."
+    },
+    body1: {
+      label: "본문 1의 원문 근거",
+      evidence: "기사 원문 2단락: 이르쿠츠크 방역연구소 소속 연구원이 고열과 호흡곤란으로 입원 후 사흘 만에 사망했다..."
+    },
+    body2: {
+      label: "본문 2의 원문 근거",
+      evidence: "기사 원문 3단락: 현지 연구원 증언에 따르면 실험실 내 표본 용기 파손 사고 가능성이 제기되었다..."
+    },
+    body3: {
+      label: "본문 3의 원문 근거",
+      evidence: "기사 원문 4단락: WHO는 성명을 내고 관련국에 투명한 역학조사 결과 공유를 요청했다..."
+    },
+    outro: {
+      label: "마무리의 원문 근거",
+      evidence: "기사 원문 5단락: 국제 보건 전문가들은 생물학 안전 연구시설에 대한 다국적 상호 실사 필요성을 강조했다..."
+    }
+  };
+
+  // SNS 계정 연동 단계 상태
+  const [snsConnectStep, setSnsConnectStep] = useState(2); // 1, 2, 3
+  const [isAppVerified, setIsAppVerified] = useState(true);
+
+  // 팩트체크 수정사항 토글/적용
+  const handleApplyFactCheck = (id) => {
+    setFactCheckIssues((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          return { ...item, applied: !item.applied };
+        }
+        return item;
+      })
+    );
+    showToast("팩트체크 수정사항이 원고에 반영되었습니다.");
+  };
+
+  // 스레드 내용 업데이트
+  const updateThreadContent = (id, newContent) => {
+    setThreadsList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, content: newContent } : item))
+    );
+  };
+
+  // 인스타그램 해시태그 추가/삭제
+  const handleAddHashtag = (tag) => {
+    const trimmed = tag.trim().replace(/^#/, "");
+    if (!trimmed) return;
+    const formatted = `#${trimmed}`;
+    if (!instagramHashtags.includes(formatted)) {
+      setInstagramHashtags((prev) => [...prev, formatted]);
+      showToast(`'${formatted}' 해시태그가 추가되었습니다.`);
+    }
+    setNewHashtagInput("");
+  };
+
+  const handleRemoveHashtag = (tagToRemove) => {
+    setInstagramHashtags((prev) => prev.filter((t) => t !== tagToRemove));
+    showToast(`'${tagToRemove}' 해시태그가 삭제되었습니다.`);
+  };
+
+  // 인스타그램 캡션 복사
+  const handleCopyInstagramCaption = () => {
+    const fullText = `${instagramCaption}\n\n${instagramHashtags.join(" ")}`;
+    navigator.clipboard.writeText(fullText);
+    setIsInstagramCopied(true);
+    showToast("인스타그램 캡션과 해시태그가 클립보드에 복사되었습니다!");
+    setTimeout(() => setIsInstagramCopied(false), 2000);
+  };
+
+  // 스레드 타래 전체 복사
+  const handleCopyThreads = () => {
+    const fullText = threadsList.map((t, idx) => `[타래 ${idx + 1}]\n${t.content}`).join("\n\n---\n\n");
+    navigator.clipboard.writeText(fullText);
+    setIsThreadsCopied(true);
+    showToast("스레드 타래 전체가 클립보드에 복사되었습니다!");
+    setTimeout(() => setIsThreadsCopied(false), 2000);
+  };
+
+  // 원고 구성 문단 내용 피드에 삽입
+  const handleInsertDraftSection = (sectionKey) => {
+    const textToInsert = draftSections[sectionKey];
+    if (!textToInsert) return;
+    if (activePlatform === "instagram") {
+      setInstagramCaption((prev) => (prev ? `${prev}\n\n${textToInsert}` : textToInsert));
+      showToast(`'${sectionEvidenceMap[sectionKey]?.label || sectionKey}' 내용이 인스타그램 캡션에 반영되었습니다.`);
+    } else if (activePlatform === "threads") {
+      setThreadsList((prev) => [
+        { ...prev[0], content: prev[0].content ? `${prev[0].content}\n\n${textToInsert}` : textToInsert },
+        prev[1]
+      ]);
+      showToast(`'${sectionEvidenceMap[sectionKey]?.label || sectionKey}' 내용이 스레드 1번에 반영되었습니다.`);
+    }
+  };
+
+  // 원고 구성 네비게이션 스크롤 함수
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-[#8ECAE6]", "ring-offset-2");
+      setTimeout(() => el.classList.remove("ring-2", "ring-[#8ECAE6]", "ring-offset-2"), 1500);
+    }
+  };
+
+  // 초안 액션 버튼 물방울 인디케이터 상태 및 ref
+  const [activeDraftAction, setActiveDraftAction] = useState("save");
+  const [draftBubbleStyle, setDraftBubbleStyle] = useState({ left: 0, width: 0, isReady: false });
+  const draftBtnContainerRef = useRef(null);
+  const draftBtnRefs = useRef({});
+
+  const updateDraftBubblePosition = (actionKey = activeDraftAction) => {
+    const currentBtn = draftBtnRefs.current[actionKey];
+    const container = draftBtnContainerRef.current;
+    if (currentBtn && container) {
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = currentBtn.getBoundingClientRect();
+      setDraftBubbleStyle({
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+        isReady: true
+      });
+    }
+  };
+
+  useEffect(() => {
+    updateDraftBubblePosition(activeDraftAction);
+    const timer = setTimeout(() => updateDraftBubblePosition(activeDraftAction), 60);
+    return () => clearTimeout(timer);
+  }, [activeDraftAction]);
+
+  // 기사 내용 기반 인스타그램 캡션 및 스레드 자동 초기화
+  useEffect(() => {
+    if (!instagramCaption && activeArticle.title) {
+      const initialCaption = `${activeArticle.title}\n\n${leadParagraph || activeArticle.content?.slice(0, 200) || ""}\n\n📌 자세한 내용은 AI Newsroom 기사 전문에서 확인하세요.`;
+      setInstagramCaption(initialCaption);
+    }
+  }, [activeArticle, leadParagraph, instagramCaption]);
+
+  useEffect(() => {
+    if (threadsList[0].content === "" && activeArticle.title) {
+      setThreadsList([
+        {
+          id: 1,
+          content: `🧵 1/2. ${activeArticle.title}\n\n${leadParagraph || "오늘의 주요 보도 내용을 정리해 전달합니다."}`
+        },
+        {
+          id: 2,
+          content: `2/2. ${activeArticle.subtitle ? `핵심 포인트: ${activeArticle.subtitle}\n\n` : ""}더 많은 심층 취재 기사는 AI Newsroom에서 확인하실 수 있습니다.`
+        }
+      ]);
+    }
+  }, [activeArticle, leadParagraph, threadsList]);
 
   // 2. 초기 카드 데이터 (필드별 서식 및 고정 기능 내장)
   const defaultStyles = {
@@ -230,8 +471,9 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
     setTimeout(() => setToastMessage(""), 2200);
   };
 
-  // 내 사진 파일 업로드 ref
+  // 내 사진 파일 업로드 ref & 초안 파일 업로드 ref
   const fileInputRef = useRef(null);
+  const draftFileInputRef = useRef(null);
 
   // Unsplash 검색 모달 상태
   const [showUnsplashModal, setShowUnsplashModal] = useState(false);
@@ -610,12 +852,28 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
   // Unsplash 사진 선택 적용
   const handleSelectUnsplashPhoto = (photoUrl) => {
     updateActiveCard("bgImage", photoUrl);
+    setInstagramImage(photoUrl);
     setShowUnsplashModal(false);
-    showToast("Unsplash 사진이 카드 배경으로 적용되었습니다.");
+    showToast("사진이 성공적으로 적용되었습니다.");
   };
 
-  // 저장하기 핸들러
-  const handleSave = () => {
+  // 플랫폼 이미지 직접 업로드
+  const handleUploadPlatformImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const imageUrl = uploadEvent.target?.result;
+      setInstagramImage(imageUrl);
+      updateActiveCard("bgImage", imageUrl);
+      showToast("내 사진이 성공적으로 적용되었습니다.");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // 초안 저장 핸들러
+  const handleSaveDraft = () => {
     try {
       const now = new Date();
       const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -623,14 +881,76 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
       const draft = {
         cards,
         selectedPlatforms,
+        activePlatform,
         activeCardIndex,
-        savedAt: timeStr
+        instagramCaption,
+        instagramHashtags,
+        threadsList,
+        savedAt: timeStr,
+        savedDate: now.toISOString()
       };
       localStorage.setItem("team01_news_card_draft", JSON.stringify(draft));
-      showToast(`저장되었습니다. (${timeStr})`);
+      showToast(`초안이 저장되었습니다. (${timeStr})`);
     } catch {
-      showToast("저장에 실패했습니다.");
+      showToast("초안 저장에 실패했습니다.");
     }
+  };
+
+  // 초안 불러오기 핸들러 (localStorage)
+  const handleLoadDraft = () => {
+    try {
+      const raw = localStorage.getItem("team01_news_card_draft");
+      if (!raw) {
+        showToast("저장된 초안이 없습니다.");
+        return;
+      }
+      const draft = JSON.parse(raw);
+      if (draft.cards && Array.isArray(draft.cards) && draft.cards.length > 0) {
+        setCards(draft.cards);
+        if (draft.selectedPlatforms) setSelectedPlatforms(draft.selectedPlatforms);
+        if (draft.activePlatform) setActivePlatform(draft.activePlatform);
+        if (draft.activeCardIndex !== undefined) setActiveCardIndex(Math.min(draft.activeCardIndex, draft.cards.length - 1));
+        if (draft.instagramCaption) setInstagramCaption(draft.instagramCaption);
+        if (draft.instagramHashtags) setInstagramHashtags(draft.instagramHashtags);
+        if (draft.threadsList) setThreadsList(draft.threadsList);
+        if (draft.savedAt) setLastSavedTime(draft.savedAt);
+        showToast(`초안을 불러왔습니다. (${draft.savedAt || "저장본"})`);
+      } else {
+        showToast("저장된 초안 데이터가 올바르지 않습니다.");
+      }
+    } catch {
+      showToast("초안을 불러오는 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 내 문서에서 초안 불러오기 핸들러 (.json)
+  const handleLoadFromFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result;
+        if (!text) return;
+        const parsed = JSON.parse(text);
+        if (parsed.cards && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
+          setCards(parsed.cards);
+          if (parsed.selectedPlatforms) setSelectedPlatforms(parsed.selectedPlatforms);
+          if (parsed.activePlatform) setActivePlatform(parsed.activePlatform);
+          if (parsed.activeCardIndex !== undefined) setActiveCardIndex(Math.min(parsed.activeCardIndex, parsed.cards.length - 1));
+          if (parsed.instagramCaption) setInstagramCaption(parsed.instagramCaption);
+          if (parsed.instagramHashtags) setInstagramHashtags(parsed.instagramHashtags);
+          if (parsed.threadsList) setThreadsList(parsed.threadsList);
+          showToast(`내 문서의 "${file.name}" 초안을 불러왔습니다.`);
+        } else {
+          showToast("초안 파일 형식(cards 데이터)이 올바르지 않습니다.");
+        }
+      } catch {
+        showToast("초안 파일(.json)을 파싱할 수 없습니다.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   // 배포하기 핸들러
@@ -968,7 +1288,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             onClick={() => toggleFieldLock(field)}
             className={`px-2 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer text-xs font-bold ${
               fStyle.isLocked
-                ? "bg-[#F4A940] hover:bg-[#E59830] text-white shadow-xs font-black ring-1 ring-[#E59830]"
+                ? "bg-[#8ECAE6] hover:bg-[#79BDE0] text-[#1E293B] shadow-xs font-black ring-1 ring-[#8ECAE6]"
                 : "text-stone-500 hover:text-black hover:bg-stone-100"
             }`}
             title={fStyle.isLocked ? "클릭하여 잠금 해제" : "영역 잠금"}
@@ -1024,18 +1344,18 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             ? "cursor-pointer opacity-85 ring-1 ring-amber-400/50 bg-amber-500/5 hover:ring-amber-400"
             : isBeingDragged
             ? isFreeLayoutMode
-              ? "cursor-grabbing ring-2 ring-[#0095F6] border border-dashed border-[#0095F6] bg-[#0095F6]/15 shadow-xl scale-[1.03]"
+              ? "cursor-grabbing ring-2 ring-[#8ECAE6] border border-dashed border-[#8ECAE6] bg-[#8ECAE6]/15 shadow-xl scale-[1.03]"
               : "cursor-grabbing ring-2 ring-[#F4A940] border border-dashed border-[#F4A940] bg-[#F4A940]/15 shadow-xl scale-[1.03]"
             : isEditing
             ? isFreeLayoutMode
-              ? "cursor-text ring-1 ring-[#0095F6] bg-white/10"
+              ? "cursor-text ring-1 ring-[#8ECAE6] bg-white/10"
               : "cursor-text ring-1 ring-white/60 bg-white/10"
             : isSelected
             ? isFreeLayoutMode
-              ? "cursor-grab active:cursor-grabbing ring-1.5 ring-[#0095F6] border border-dashed border-[#0095F6]/80 bg-[#0095F6]/5 shadow-md"
+              ? "cursor-grab active:cursor-grabbing ring-1.5 ring-[#8ECAE6] border border-dashed border-[#8ECAE6]/80 bg-[#8ECAE6]/5 shadow-md"
               : "cursor-grab active:cursor-grabbing ring-1.5 ring-[#F4A940] border border-dashed border-[#F4A940]/60 bg-white/5 shadow-md"
             : isFreeLayoutMode
-            ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-[#0095F6]/40 hover:bg-white/5"
+            ? "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-[#8ECAE6]/40 hover:bg-white/5"
             : "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-white/25 hover:bg-white/5"
         } ${isBeingDragged ? "z-40" : ""}`}
       >
@@ -1090,7 +1410,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   e.stopPropagation();
                   toggleFieldLock(field);
                 }}
-                className="absolute -right-8 top-1/2 -translate-y-1/2 text-amber-300 hover:text-white bg-black/85 hover:bg-[#F4A940] transition-all px-1.5 py-0.5 rounded-full flex items-center gap-1 cursor-pointer shadow-md ring-1 ring-amber-400/60 text-[9px] font-bold z-20"
+                className="absolute -right-8 top-1/2 -translate-y-1/2 text-sky-200 hover:text-[#1E293B] bg-black/85 hover:bg-[#8ECAE6] transition-all px-1.5 py-0.5 rounded-full flex items-center gap-1 cursor-pointer shadow-md ring-1 ring-[#8ECAE6]/60 text-[9px] font-bold z-20"
                 title="클릭하여 잠금 해제"
               >
                 <Lock className="w-2.5 h-2.5 stroke-[2.5]" />
@@ -1145,7 +1465,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   e.stopPropagation();
                   toggleFieldLock(field);
                 }}
-                className="absolute -top-3 -right-3 text-amber-300 hover:text-white bg-black/85 hover:bg-[#F4A940] transition-all px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer shadow-md ring-1 ring-amber-400/60 text-[10px] font-bold z-20"
+                className="absolute -top-3 -right-3 text-sky-200 hover:text-[#1E293B] bg-black/85 hover:bg-[#8ECAE6] transition-all px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer shadow-md ring-1 ring-[#8ECAE6]/60 text-[10px] font-bold z-20"
                 title="클릭하여 잠금 해제"
               >
                 <Lock className="w-2.5 h-2.5 stroke-[2.5]" />
@@ -1199,7 +1519,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   e.stopPropagation();
                   toggleFieldLock(field);
                 }}
-                className="absolute -top-3 -right-3 text-amber-300 hover:text-white bg-black/85 hover:bg-[#F4A940] transition-all px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer shadow-md ring-1 ring-amber-400/60 text-[10px] font-bold z-20"
+                className="absolute -top-3 -right-3 text-sky-200 hover:text-[#1E293B] bg-black/85 hover:bg-[#8ECAE6] transition-all px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer shadow-md ring-1 ring-[#8ECAE6]/60 text-[10px] font-bold z-20"
                 title="클릭하여 잠금 해제"
               >
                 <Lock className="w-2.5 h-2.5 stroke-[2.5]" />
@@ -1226,7 +1546,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             NEWSROOM / CONTENT STUDIO
           </span>
           <h2 className="text-xl md:text-2xl font-black text-[#292B2F] tracking-tight">
-            플랫폼 변형
+            플랫폼 배포
           </h2>
         </div>
 
@@ -1244,31 +1564,98 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             </div>
           )}
 
-          {/* 저장하기 버튼 (White Pill 스타일) */}
-          <button
-            type="button"
-            onClick={handleSave}
-            className="btn-pill-white gap-3 text-xs"
-            title="현재 작업 내용을 저장합니다"
+          {/* 초안 액션 버튼 영역 (도형 구분 배제, 'ㅣ' 구분선, 부드러운 물방울 무빙 인디케이터) */}
+          <div
+            ref={draftBtnContainerRef}
+            onMouseLeave={() => updateDraftBubblePosition(activeDraftAction)}
+            className="relative flex items-center gap-1.5 px-1 py-1 select-none"
           >
-            <span>저장하기</span>
-            <span className="btn-pill-badge">
-              <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </span>
-          </button>
+            {/* 부드러운 물방울 형태의 투명감 있는 이동 인디케이터 */}
+            {draftBubbleStyle.isReady && (
+              <span
+                className="absolute h-8 rounded-full pointer-events-none transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-0"
+                style={{
+                  left: `${draftBubbleStyle.left}px`,
+                  width: `${draftBubbleStyle.width}px`,
+                  backgroundColor: "rgba(15, 23, 42, 0.08)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  border: "1px solid rgba(15, 23, 42, 0.08)",
+                  boxShadow: "0 2px 10px rgba(0, 0, 0, 0.04), inset 0 1px 1.5px rgba(255, 255, 255, 0.8)",
+                }}
+              />
+            )}
 
-          {/* 배포하기 버튼 (Dark Pill 스타일) */}
-          <button
-            type="button"
-            onClick={handlePublish}
-            className="btn-pill-dark gap-3 text-xs"
-            title="제작된 카드 뉴스를 최종 배포합니다"
-          >
-            <span>배포하기</span>
-            <span className="btn-pill-badge">
-              <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-            </span>
-          </button>
+            {/* 1. 초안 저장 버튼 */}
+            <button
+              ref={(el) => (draftBtnRefs.current["save"] = el)}
+              type="button"
+              onMouseEnter={() => updateDraftBubblePosition("save")}
+              onClick={() => {
+                setActiveDraftAction("save");
+                handleSaveDraft();
+              }}
+              className={`relative z-10 px-3 py-1.5 text-xs tracking-tight transition-colors duration-200 cursor-pointer whitespace-nowrap rounded-full ${
+                activeDraftAction === "save"
+                  ? "text-stone-950 font-bold"
+                  : "text-stone-500 hover:text-stone-800 font-medium"
+              }`}
+              title="현재 작업 중인 카드 초안을 저장합니다"
+            >
+              초안 저장
+            </button>
+
+            {/* 구분선 ㅣ */}
+            <span className="text-stone-300 select-none text-xs font-light z-0">ㅣ</span>
+
+            {/* 2. 초안 불러오기 버튼 */}
+            <button
+              ref={(el) => (draftBtnRefs.current["load"] = el)}
+              type="button"
+              onMouseEnter={() => updateDraftBubblePosition("load")}
+              onClick={() => {
+                setActiveDraftAction("load");
+                handleLoadDraft();
+              }}
+              className={`relative z-10 px-3 py-1.5 text-xs tracking-tight transition-colors duration-200 cursor-pointer whitespace-nowrap rounded-full ${
+                activeDraftAction === "load"
+                  ? "text-stone-950 font-bold"
+                  : "text-stone-500 hover:text-stone-800 font-medium"
+              }`}
+              title="저장된 카드 초안을 불러옵니다"
+            >
+              초안 불러오기
+            </button>
+
+            {/* 구분선 ㅣ */}
+            <span className="text-stone-300 select-none text-xs font-light z-0">ㅣ</span>
+
+            {/* 3. 내 문서에서 초안 불러오기 버튼 */}
+            <button
+              ref={(el) => (draftBtnRefs.current["file"] = el)}
+              type="button"
+              onMouseEnter={() => updateDraftBubblePosition("file")}
+              onClick={() => {
+                setActiveDraftAction("file");
+                draftFileInputRef.current?.click();
+              }}
+              className={`relative z-10 px-3 py-1.5 text-xs tracking-tight transition-colors duration-200 cursor-pointer whitespace-nowrap rounded-full ${
+                activeDraftAction === "file"
+                  ? "text-stone-950 font-bold"
+                  : "text-stone-500 hover:text-stone-800 font-medium"
+              }`}
+              title="내 문서(PC)에서 초안 파일(.json)을 불러옵니다"
+            >
+              내 문서에서 초안 불러오기
+            </button>
+          </div>
+          <input
+            type="file"
+            ref={draftFileInputRef}
+            accept=".json,application/json"
+            onChange={handleLoadFromFile}
+            className="hidden"
+          />
         </div>
       </div>
 
@@ -1279,20 +1666,9 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
         {/* ──────── [좌측 패널 (lg:col-span-3)] ──────── */}
         <div className="lg:col-span-3 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-4">
           
-          {/* ⭐ 1. 배포 플랫폼 선택 위: 기사 전문 보기 (박스 형태 없이 오픈형으로 배치) */}
+          {/* 1. 기사 제목과 부제목, 그 아래 기사 전문보기 버튼 */}
           <div className="pb-3.5 border-b border-stone-200/60 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <FileText className="w-4 h-4 text-[#0095F6]" />
-                <span className="text-xs font-bold text-[#292929]">작성 중인 기사</span>
-              </div>
-              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                연동 중
-              </span>
-            </div>
-
-            {/* 기사 제목 및 부제목 */}
+            {/* 기사 제목 및 부제목만 노출 */}
             <div className="space-y-1">
               <p className="text-xs font-extrabold text-[#292929] line-clamp-2 leading-snug">
                 {activeArticle.title || "제목 없는 기사"}
@@ -1304,134 +1680,278 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               )}
             </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap text-[10px] text-[#666666]">
-              <span className="font-bold text-[#008285] bg-[#E6F4F4] px-1.5 py-0.5 rounded-md">
-                {activeArticle.category || "사회"}
-              </span>
-              <span>{activeArticle.content ? `${activeArticle.content.length.toLocaleString()}자` : "0자"}</span>
-              <span>· 약 {Math.max(1, Math.ceil((activeArticle.content?.length || 0) / 500))}분</span>
-            </div>
-
+            {/* 그 아래 기사 전문보기 버튼만 생성 */}
             <button
               type="button"
               onClick={() => {
                 window.scrollTo({ top: 0, behavior: "smooth" });
                 setShowFullArticleModal(true);
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#292929] hover:text-[#0095F6] transition-colors pt-0.5 cursor-pointer group"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#292929] hover:text-[#8ECAE6] transition-colors pt-1 cursor-pointer group"
               title="클릭 시 기사 전문 열람"
             >
-              <BookOpen className="w-3.5 h-3.5 text-[#0095F6]" />
+              <BookOpen className="w-3.5 h-3.5 text-[#8ECAE6]" />
               <span>기사 전문 보기</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#0095F6] group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="w-3.5 h-3.5 text-[#8ECAE6] group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
 
           {/* 2. 배포 플랫폼 선택 */}
-          <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
+          <div className="space-y-3 pb-3.5 border-b border-stone-200/60">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black text-[#292929]">배포 플랫폼 선택</h3>
-              <span className="text-[10px] text-[#666666] font-medium">다중 선택</span>
+              <h3 className="text-xs font-black text-[#292929]">플랫폼 선택 및 제작</h3>
+              <span className="text-[10px] text-[#8ECAE6] font-bold">클릭 시 화면 전환</span>
             </div>
 
-            <div className="space-y-1.5">
-              {[
-                { id: "instagram", label: "Instagram" },
-                { id: "threads", label: "Threads" },
-                { id: "cardnews", label: "카드뉴스" }
-              ].map((item) => {
-                const isChecked = selectedPlatforms.includes(item.id);
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => togglePlatform(item.id)}
-                    className={`w-full px-3 py-2 rounded-xl border text-xs font-bold flex items-center gap-2.5 transition cursor-pointer select-none text-left ${
-                      isChecked
-                        ? "bg-white border-[#292929] text-[#292929] shadow-2xs"
-                        : "bg-white/60 border-stone-200/70 text-stone-600 hover:bg-white"
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
-                        isChecked
-                          ? "bg-[#292929] border-[#292929] text-white"
-                          : "bg-white border-stone-300"
-                      }`}
-                    >
-                      {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                    </div>
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <p className="text-[10px] text-[#999999] leading-relaxed pt-0.5">
-              Instagram 카드 규격으로 편집 중입니다.
-            </p>
-          </div>
-
-          {/* 3. 선택한 카드의 사진 */}
-          <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
-            <h3 className="text-xs font-black text-[#292929]">선택한 카드의 사진</h3>
-
-            <div className="space-y-2">
+            {/* (1) 카드뉴스 생성 시작하기 */}
+            <div className="space-y-1">
               <button
                 type="button"
                 onClick={() => {
-                  setShowUnsplashModal(true);
-                  if (unsplashResults.length === 0) {
-                    handleSearchUnsplash(unsplashQuery);
+                  setActivePlatform("cardnews");
+                  if (!selectedPlatforms.includes("cardnews")) {
+                    setSelectedPlatforms((prev) => [...prev, "cardnews"]);
                   }
                 }}
-                className="btn-pill-dark w-full text-xs"
+                className={`w-full px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition cursor-pointer select-none text-left ${
+                  activePlatform === "cardnews"
+                    ? "bg-white border-[#8ECAE6] text-[#292929] shadow-2xs ring-1 ring-[#8ECAE6]/50"
+                    : "bg-white/60 border-stone-200/70 text-stone-600 hover:bg-white"
+                }`}
               >
-                <span>Unsplash 사진 검색</span>
-                <span className="btn-pill-badge">
-                  <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="btn-pill-white w-full text-xs"
-              >
-                <span>내 사진 불러오기</span>
-                <span className="btn-pill-badge">
-                  <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                </span>
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={handleUploadLocalImage}
-                className="hidden"
-              />
-
-              <button
-                type="button"
-                onClick={handleResetBlackBg}
-                className="w-full py-2 px-3 bg-[#18181B] hover:bg-black text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98"
-              >
-                <span>검정 배경으로 변경</span>
+                <div className="flex items-center gap-2.5">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlatform("cardnews");
+                    }}
+                    className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
+                      selectedPlatforms.includes("cardnews")
+                        ? "bg-[#8ECAE6] border-[#8ECAE6] text-[#1E293B]"
+                        : "bg-white border-stone-300"
+                    }`}
+                    title="배포 대상 포함 여부"
+                  >
+                    {selectedPlatforms.includes("cardnews") && <Check className="w-3 h-3 stroke-[3]" />}
+                  </div>
+                  <span className={activePlatform === "cardnews" ? "text-[#292929] font-black" : "text-[#292929]"}>
+                    카드뉴스 생성 시작하기
+                  </span>
+                </div>
+                {activePlatform === "cardnews" ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8ECAE6]/25 text-[#1E293B] font-black">
+                    편집 화면
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-stone-400 font-normal">
+                    4:5 규격
+                  </span>
+                )}
               </button>
             </div>
-          </div>
 
-          {/* 4. 편집 안내 */}
-          <div className="space-y-1">
-            <h3 className="text-xs font-black text-[#292929]">편집 안내</h3>
-            <p className="text-[11px] text-[#666666] leading-relaxed">
-              수정할 텍스트를 누르면 플로팅 텍스트바가 열립니다. 서식 변경 및 <strong>고정(🔒)</strong>이 가능합니다.
+            {/* (2) 구분선 및 아래 배포 버튼 (인스타그램 & 스레드) */}
+            <div className="pt-2 border-t border-stone-200/60 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black text-stone-700">배포 플랫폼</span>
+                <span className="text-[10px] text-stone-400">SNS 연동</span>
+              </div>
+
+              <div className="space-y-1.5">
+                {[
+                  { id: "instagram", label: "인스타그램", sub: "Instagram", badge: "피드" },
+                  { id: "threads", label: "스레드", sub: "Threads", badge: "타래" }
+                ].map((item) => {
+                  const isActive = activePlatform === item.id;
+                  const isChecked = selectedPlatforms.includes(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActivePlatform(item.id);
+                        if (!selectedPlatforms.includes(item.id)) {
+                          setSelectedPlatforms((prev) => [...prev, item.id]);
+                        }
+                      }}
+                      className={`w-full px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition cursor-pointer select-none text-left ${
+                        isActive
+                          ? "bg-white border-[#8ECAE6] text-[#292929] shadow-2xs ring-1 ring-[#8ECAE6]/50"
+                          : "bg-white/60 border-stone-200/70 text-stone-600 hover:bg-white"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePlatform(item.id);
+                          }}
+                          className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
+                            isChecked
+                              ? "bg-[#8ECAE6] border-[#8ECAE6] text-[#1E293B]"
+                              : "bg-white border-stone-300"
+                          }`}
+                          title="배포 대상 포함 여부"
+                        >
+                          {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={isActive ? "text-[#292929] font-black" : "text-[#292929]"}>
+                            {item.label}
+                          </span>
+                          <span className="text-[10px] text-stone-400 font-normal">
+                            ({item.sub})
+                          </span>
+                        </div>
+                      </div>
+                      {isActive ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8ECAE6]/25 text-[#1E293B] font-black">
+                          편집 화면
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-stone-400 font-normal">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <p className="text-[10px] text-[#999999] leading-relaxed pt-0.5">
+              {activePlatform === "cardnews"
+                ? "카드뉴스 규격(4:5) 제작 및 슬라이드 편집 화면입니다."
+                : activePlatform === "instagram"
+                ? "인스타그램 피드 이미지 및 캡션 배포 편집 화면입니다."
+                : "스레드 타래 및 피드 글 배포 편집 화면입니다."}
             </p>
           </div>
+
+          {/* 3. 플랫폼별 옵션 (카드뉴스 활성 시 사진 편집 도구 표시) */}
+          {activePlatform === "cardnews" ? (
+            <>
+              {/* 선택한 카드의 사진 */}
+              <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
+                <h3 className="text-xs font-black text-[#292929]">선택한 카드의 사진</h3>
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUnsplashModal(true);
+                      if (unsplashResults.length === 0) {
+                        handleSearchUnsplash(unsplashQuery);
+                      }
+                    }}
+                    className="btn-pill-dark w-full text-xs"
+                  >
+                    <span>Unsplash 사진 검색</span>
+                    <span className="btn-pill-badge" title="검색">
+                      <Search className="w-3.5 h-3.5 stroke-[2.2]" />
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn-pill-white w-full text-xs"
+                  >
+                    <span>내 사진 불러오기</span>
+                    <span className="btn-pill-badge" title="사진 불러오기">
+                      <ImageIcon className="w-3.5 h-3.5 stroke-[2.2]" />
+                    </span>
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleUploadLocalImage}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleResetBlackBg}
+                    className="w-full py-2 px-3 bg-[#18181B] hover:bg-black text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98"
+                  >
+                    <span>검정 배경으로 변경</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 편집 안내 */}
+              <div className="space-y-1">
+                <h3 className="text-xs font-black text-[#292929]">카드뉴스 편집 안내</h3>
+                <p className="text-[11px] text-[#666666] leading-relaxed">
+                  수정할 텍스트를 누르면 플로팅 텍스트바가 열립니다. 서식 변경 및 <strong>고정(🔒)</strong>이 가능합니다.
+                </p>
+              </div>
+            </>
+          ) : activePlatform === "instagram" ? (
+            <>
+              {/* Instagram 배포 옵션 */}
+              <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
+                <h3 className="text-xs font-black text-[#292929]">Instagram 배포 옵션</h3>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setActivePlatform("cardnews")}
+                    className="btn-pill-white w-full text-xs"
+                    title="카드뉴스 화면으로 전환"
+                  >
+                    <span>카드뉴스 연동하기</span>
+                    <span className="btn-pill-badge" title="카드뉴스">
+                      <Newspaper className="w-3.5 h-3.5 stroke-[2.2]" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Instagram 배포 안내 */}
+              <div className="space-y-1">
+                <h3 className="text-xs font-black text-[#292929]">배포 가이드</h3>
+                <p className="text-[11px] text-[#666666] leading-relaxed">
+                  인스타그램 피드는 첫 125자가 더보기 전에 노출되므로, 서두에 핵심 헤드라인을 배치하는 것을 권장합니다.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Threads 배포 옵션 */}
+              <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
+                <h3 className="text-xs font-black text-[#292929]">Threads 배포 옵션</h3>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setActivePlatform("cardnews")}
+                    className="btn-pill-white w-full text-xs"
+                    title="카드뉴스 화면으로 전환"
+                  >
+                    <span>카드뉴스 연동하기</span>
+                    <span className="btn-pill-badge" title="카드뉴스">
+                      <Newspaper className="w-3.5 h-3.5 stroke-[2.2]" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Threads 배포 안내 */}
+              <div className="space-y-1">
+                <h3 className="text-xs font-black text-[#292929]">배포 가이드</h3>
+                <p className="text-[11px] text-[#666666] leading-relaxed">
+                  스레드는 타래당 최대 500자까지 작성할 수 있으며, 1번 글에 흥미를 유발하는 질문이나 핵심 결론을 제시하세요.
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* ──────── [중앙 패널 (lg:col-span-6)]: 카드 편집 캔버스 (스크롤 시 고정되어 따라오는 sticky 적용) ──────── */}
-        <div className="lg:col-span-6 sticky top-4 self-start bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-5 md:p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between space-y-4 relative z-10">
+        {/* ──────── [카드뉴스 배포 화면 (activePlatform === "cardnews")]: 중앙 캔버스 & 우측 카드 목록 ──────── */}
+        {activePlatform === "cardnews" && (
+          <>
+            {/* ──────── [중앙 패널 (lg:col-span-6)]: 카드 편집 캔버스 (스크롤 시 고정되어 따라오는 sticky 적용) ──────── */}
+            <div className="lg:col-span-6 sticky top-4 self-start bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-5 md:p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between space-y-4 relative z-10">
           {/* 상단 바: N번 카드 편집 + 4:5 1080 x 1350 */}
           {/* 상단 메타 바: 비율 & 상태 & 자유 배치 버튼 */}
           <div className="flex items-center justify-between pb-3 border-b border-stone-200/60 flex-wrap gap-2">
@@ -1458,7 +1978,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                 }}
                 className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
                   isFreeLayoutMode
-                    ? "bg-[#0095F6] text-white shadow-sm ring-1 ring-[#0081D6]"
+                    ? "bg-[#8ECAE6] text-[#1E293B] shadow-sm ring-1 ring-[#8ECAE6]"
                     : "bg-white text-stone-700 hover:bg-stone-50 border border-stone-200 hover:text-black"
                 }`}
                 title={isFreeLayoutMode ? "상·중·하 틀 맞춤 모드로 전환" : "원하는 위치로 자유롭게 드래그하여 배치 (인스타그램 스토리 스타일)"}
@@ -1500,8 +2020,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   <div
                     className={`absolute top-0 bottom-0 left-1/2 -translate-x-1/2 border-l-2 border-dashed transition-all duration-150 ${
                       isSnappedX
-                        ? "border-[#0095F6] shadow-[0_0_14px_rgba(0,149,246,0.95)] opacity-100"
-                        : "border-[#0095F6]/45 opacity-45"
+                        ? "border-[#8ECAE6] shadow-[0_0_14px_rgba(142,202,230,0.95)] opacity-100"
+                        : "border-[#8ECAE6]/50 opacity-50"
                     }`}
                   />
 
@@ -1509,15 +2029,15 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   <div
                     className={`absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed transition-all duration-150 ${
                       isSnappedY
-                        ? "border-[#0095F6] shadow-[0_0_14px_rgba(0,149,246,0.95)] opacity-100"
-                        : "border-[#0095F6]/45 opacity-45"
+                        ? "border-[#8ECAE6] shadow-[0_0_14px_rgba(142,202,230,0.95)] opacity-100"
+                        : "border-[#8ECAE6]/50 opacity-50"
                     }`}
                   />
 
                   {/* 인스타그램 스타일 중앙 스냅 뱃지 알림 */}
                   {(isSnappedX || isSnappedY) && (
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#0095F6] text-white px-3 py-1 rounded-full text-[11px] font-black shadow-[0_4px_16px_rgba(0,149,246,0.5)] flex items-center gap-1.5 animate-smooth-pop">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-[#8ECAE6] text-[#1E293B] px-3 py-1 rounded-full text-[11px] font-black shadow-[0_4px_16px_rgba(142,202,230,0.6)] flex items-center gap-1.5 animate-smooth-pop">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1E293B] animate-ping" />
                       <span>
                         {isSnappedX && isSnappedY
                           ? "정중앙 맞춤 (Instagram Center)"
@@ -1542,7 +2062,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   <div
                     className={`h-24 rounded-xl border-2 border-dashed transition-all duration-300 ease-out flex items-center justify-center text-xs font-black ${
                       dragTargetZone === "top"
-                        ? "border-[#F4A940] bg-[#F4A940]/25 text-[#F4A940] shadow-lg scale-[1.02]"
+                        ? "border-[#8ECAE6] bg-[#8ECAE6]/25 text-[#1E293B] shadow-lg scale-[1.02]"
                         : "border-white/20 text-white/30"
                     }`}
                   >
@@ -1551,7 +2071,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   <div
                     className={`h-28 rounded-xl border-2 border-dashed transition-all duration-300 ease-out flex items-center justify-center text-xs font-black ${
                       dragTargetZone === "center"
-                        ? "border-[#F4A940] bg-[#F4A940]/25 text-[#F4A940] shadow-lg scale-[1.02]"
+                        ? "border-[#8ECAE6] bg-[#8ECAE6]/25 text-[#1E293B] shadow-lg scale-[1.02]"
                         : "border-white/20 text-white/30"
                     }`}
                   >
@@ -1560,7 +2080,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   <div
                     className={`h-24 rounded-xl border-2 border-dashed transition-all duration-300 ease-out flex items-center justify-center text-xs font-black ${
                       dragTargetZone === "bottom"
-                        ? "border-[#F4A940] bg-[#F4A940]/25 text-[#F4A940] shadow-lg scale-[1.02]"
+                        ? "border-[#8ECAE6] bg-[#8ECAE6]/25 text-[#1E293B] shadow-lg scale-[1.02]"
                         : "border-white/20 text-white/30"
                     }`}
                   >
@@ -1605,8 +2125,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               className="btn-pill-dark text-xs gap-3"
             >
               <span>현재 카드 JPG 다운로드</span>
-              <span className="btn-pill-badge">
-                <Download className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span className="btn-pill-badge" title="다운로드">
+                <Download className="w-3.5 h-3.5 stroke-[2.2]" />
               </span>
             </button>
           </div>
@@ -1615,7 +2135,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
         {/* ──────── [우측 패널 (lg:col-span-3)]: 전체 카드 ──────── */}
         <div className="lg:col-span-3 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[520px]">
           <div>
-            {/* 전체 카드 헤더 + 앰버 원형 (+) 버튼 */}
+            {/* 전체 카드 헤더 + 글래스모피즘 블루 (+) 버튼 */}
             <div className="flex items-center justify-between pb-3 border-b border-stone-200/60 mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black text-[#292929]">전체 카드</span>
@@ -1624,7 +2144,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                 </span>
               </div>
 
-              {/* 앰버 플러스 버튼 (+) */}
+              {/* 글래스모피즘 블루 플러스 버튼 (+) */}
               <button
                 type="button"
                 onClick={handleAddCard}
@@ -1706,12 +2226,564 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               className="btn-pill-white w-full text-xs"
             >
               <span>카드 추가하기</span>
-              <span className="btn-pill-badge">
+              <span className="btn-pill-badge" title="카드 추가">
                 <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
               </span>
             </button>
           </div>
         </div>
+          </>
+        )}
+
+        {/* ──────── [플랫폼 배포 화면 메인 박스 (activePlatform !== "cardnews")] ──────── */}
+        {activePlatform !== "cardnews" && (
+          <>
+            {/* ──────── [중앙 메인 박스 (lg:col-span-5)]: 플랫폼 전환 탭 + 목업 인라인 편집 ──────── */}
+            <div className="lg:col-span-5 space-y-4">
+              {/* 플랫폼 전환 탭 바 */}
+              <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-2xl border border-stone-200/80 w-fit shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setActivePlatform("instagram")}
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    activePlatform === "instagram"
+                      ? "bg-stone-900 text-white shadow-xs"
+                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
+                  }`}
+                >
+                  Instagram
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePlatform("threads")}
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    activePlatform === "threads"
+                      ? "bg-stone-900 text-white shadow-xs"
+                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
+                  }`}
+                >
+                  Threads
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePlatform("cardnews")}
+                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                    activePlatform === "cardnews"
+                      ? "bg-stone-900 text-white shadow-xs"
+                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
+                  }`}
+                >
+                  카드뉴스
+                </button>
+              </div>
+
+              {/* ──────── [인스타그램 플랫폼 화면 및 인라인 편집] ──────── */}
+              {activePlatform === "instagram" && (
+                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 overflow-hidden text-xs max-w-md mx-auto transition-all">
+                  {/* 상단 인스타그램 헤더 */}
+                  <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-stone-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[1.5px] shadow-2xs">
+                        <div className="w-full h-full rounded-full bg-white p-[1.5px]">
+                          <div className="w-full h-full rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px] font-black">
+                            AI
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <span className="font-extrabold text-stone-900 text-xs">ainewsroom_official</span>
+                          <span className="w-3 h-3 rounded-full bg-[#8ECAE6] text-stone-950 flex items-center justify-center text-[8px] font-black" title="공식 채널">✓</span>
+                        </div>
+                        <span className="text-[10px] text-stone-400 block font-medium">스폰서 기사 · AI Newsroom</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {/* 비율 토글 */}
+                      <button
+                        type="button"
+                        onClick={() => setInstagramAspectRatio((prev) => prev === "4:5" ? "1:1" : "4:5")}
+                        className="px-2 py-0.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] font-bold transition cursor-pointer"
+                        title="이미지 비율 변경"
+                      >
+                        {instagramAspectRatio}
+                      </button>
+                      <button type="button" className="text-stone-400 hover:text-stone-700 p-1">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 피드 이미지 영역 (그 위에서 이미지 편집 가능) */}
+                  <div
+                    className={`relative overflow-hidden bg-stone-900 group ${
+                      instagramAspectRatio === "1:1" ? "aspect-square" : "aspect-[4/5]"
+                    }`}
+                  >
+                    <img
+                      src={instagramImage}
+                      alt="Instagram Feed Media"
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
+                    />
+
+                    {/* 호버 시 떠오르는 이미지 편집 글래스모피즘 오버레이 컨트롤 */}
+                    <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2.5 p-4">
+                      <span className="text-white text-xs font-bold drop-shadow flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-[#8ECAE6]" />
+                        이미지 직접 편집 / 교체
+                      </span>
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowUnsplashModal(true)}
+                          className="px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1 active:scale-95"
+                        >
+                          <Search className="w-3 h-3 text-[#8ECAE6]" />
+                          <span>Unsplash 검색</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => platformFileInputRef.current?.click()}
+                          className="px-3 py-1.5 rounded-xl bg-stone-900/95 hover:bg-black text-white text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1 active:scale-95 border border-stone-700"
+                        >
+                          <FileUp className="w-3 h-3 text-[#8ECAE6]" />
+                          <span>내 사진 업로드</span>
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-white/80">마우스를 올리면 교체 버튼이 활성화됩니다</span>
+                    </div>
+
+                    {/* 기본 상태에서도 살짝 보이는 이미지 편집 안내 뱃지 */}
+                    <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-semibold flex items-center gap-1 pointer-events-none group-hover:opacity-0 transition-opacity">
+                      <ImageIcon className="w-3 h-3 text-[#8ECAE6]" />
+                      <span>클릭/호버하여 사진 교체</span>
+                    </div>
+                  </div>
+
+                  {/* 하단 인터랙션 아이콘 바 */}
+                  <div className="px-3.5 pt-3 pb-1 flex items-center justify-between">
+                    <div className="flex items-center gap-3.5 text-stone-800">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsInstagramLiked((prev) => !prev);
+                          setInstagramLikeCount((prev) => isInstagramLiked ? prev - 1 : prev + 1);
+                        }}
+                        className="cursor-pointer transition-transform active:scale-125"
+                      >
+                        <Heart
+                          className={`w-5 h-5 transition-colors ${
+                            isInstagramLiked ? "fill-rose-500 text-rose-500" : "hover:text-rose-500"
+                          }`}
+                        />
+                      </button>
+                      <button type="button" className="cursor-pointer hover:text-stone-950">
+                        <MessageCircle className="w-5 h-5" />
+                      </button>
+                      <button type="button" className="cursor-pointer hover:text-stone-950">
+                        <Send className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <button type="button" className="cursor-pointer hover:text-stone-950 text-stone-800">
+                      <Bookmark className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* 텍스트 & 캡션 편집 영역 (피드 위에서 인라인으로 직접 편집) */}
+                  <div className="px-3.5 pb-3 space-y-2">
+                    <div className="text-xs font-black text-stone-900">
+                      좋아요 {instagramLikeCount.toLocaleString()}개
+                    </div>
+
+                    {/* 피드 캡션 인라인 텍스트 편집기 */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-stone-900 text-xs">ainewsroom_official</span>
+                        <span className="text-[10px] text-stone-400 font-medium">✏️ 텍스트 직접 편집</span>
+                      </div>
+                      <textarea
+                        value={instagramCaption}
+                        onChange={(e) => setInstagramCaption(e.target.value)}
+                        rows={5}
+                        placeholder="인스타그램에 등록될 본문 텍스트를 직접 입력하거나 수정하세요..."
+                        className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-800 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
+                      />
+                    </div>
+
+                    {/* 해시태그 인라인 편집 칩 목록 */}
+                    <div className="space-y-1.5 pt-1 border-t border-stone-100">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {instagramHashtags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-[#0284c7] text-[11px] font-bold border border-sky-100 group"
+                          >
+                            <span>{tag}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveHashtag(tag)}
+                              className="text-stone-400 hover:text-rose-500 cursor-pointer"
+                              title="태그 삭제"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* 태그 추가 인풋 */}
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        <input
+                          type="text"
+                          value={newHashtagInput}
+                          onChange={(e) => setNewHashtagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddHashtag(newHashtagInput);
+                            }
+                          }}
+                          placeholder="#새 해시태그 입력 후 Enter"
+                          className="px-2.5 py-1 rounded-lg border border-stone-200 bg-white text-[11px] text-stone-700 outline-none focus:border-[#8ECAE6] flex-1"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleAddHashtag(newHashtagInput)}
+                          className="px-2.5 py-1 rounded-lg bg-stone-900 text-white text-[11px] font-bold hover:bg-black transition cursor-pointer"
+                        >
+                          추가
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 하단 메타 & 댓글 안내 */}
+                    <div className="pt-1 text-[11px] text-stone-400 space-y-0.5">
+                      <p className="cursor-pointer hover:underline">댓글 42개 모두 보기</p>
+                      <p className="text-[10px]">방금 전 · AI Newsroom 공식 배포 채널</p>
+                    </div>
+
+                    {/* 피드 하단 빠른 액션 바 */}
+                    <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCopyInstagramCaption}
+                        className="px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-stone-500" />
+                        <span>{isInstagramCopied ? "복사 완료 ✓" : "캡션 복사"}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => showToast("✨ Instagram에 성공적으로 배포되었습니다!")}
+                        className="px-4 py-1.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <Send className="w-3.5 h-3.5 text-[#8ECAE6]" />
+                        <span>Instagram에 실제 게시</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ──────── [스레드(Threads) 플랫폼 화면 및 인라인 편집] ──────── */}
+              {activePlatform === "threads" && (
+                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 p-4 md:p-5 text-xs max-w-md mx-auto space-y-4 transition-all">
+                  {/* 타래 1번 포스트 */}
+                  <div className="flex items-start gap-3">
+                    {/* 좌측 아바타 + 타래 연결선 */}
+                    <div className="flex flex-col items-center self-stretch">
+                      <div className="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs">
+                        @
+                      </div>
+                      <div className="w-0.5 bg-stone-200 flex-1 my-1 rounded-full"></div>
+                    </div>
+
+                    {/* 우측 본문 & 편집 영역 */}
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-stone-950 text-xs">ainewsroom_official</span>
+                          <span className="text-[10px] text-stone-400">방금 전</span>
+                        </div>
+                        <MoreHorizontal className="w-4 h-4 text-stone-400" />
+                      </div>
+
+                      {/* 1번 타래 인라인 텍스트 에디터 */}
+                      <textarea
+                        value={threadsList[0]?.content}
+                        onChange={(e) => updateThreadContent(1, e.target.value)}
+                        rows={4}
+                        placeholder="스레드 1번 내용을 입력하세요..."
+                        className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-900 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
+                      />
+
+                      {/* 스레드 첨부 미디어 이미지 (클릭/호버 시 교체 가능) */}
+                      <div className="rounded-xl overflow-hidden border border-stone-200 relative group aspect-video bg-stone-900">
+                        <img
+                          src={instagramImage}
+                          alt="Threads Attachment"
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
+                        />
+                        <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowUnsplashModal(true)}
+                            className="px-2.5 py-1 rounded-lg bg-white text-stone-900 text-[11px] font-bold shadow-sm cursor-pointer flex items-center gap-1 active:scale-95"
+                          >
+                            <Search className="w-3 h-3 text-[#8ECAE6]" />
+                            <span>사진 검색</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => platformFileInputRef.current?.click()}
+                            className="px-2.5 py-1 rounded-lg bg-stone-900 text-white text-[11px] font-bold shadow-sm cursor-pointer flex items-center gap-1 border border-stone-700 active:scale-95"
+                          >
+                            <FileUp className="w-3 h-3 text-[#8ECAE6]" />
+                            <span>업로드</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 인터랙션 아이콘 바 */}
+                      <div className="flex items-center gap-4 text-stone-600 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsThreadsLiked((prev) => !prev);
+                            setThreadsLikeCount((prev) => isThreadsLiked ? prev - 1 : prev + 1);
+                          }}
+                          className="cursor-pointer flex items-center gap-1"
+                        >
+                          <Heart
+                            className={`w-4 h-4 ${isThreadsLiked ? "fill-rose-500 text-rose-500" : "hover:text-rose-500"}`}
+                          />
+                          <span className="text-[10px]">{threadsLikeCount}</span>
+                        </button>
+                        <MessageCircle className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                        <Repeat className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                        <Send className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 타래 2번 포스트 (연결된 타래) */}
+                  <div className="flex items-start gap-3 pt-1">
+                    <div className="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs">
+                      @
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-stone-950 text-xs">ainewsroom_official</span>
+                          <span className="text-[10px] text-stone-400">방금 전</span>
+                        </div>
+                        <MoreHorizontal className="w-4 h-4 text-stone-400" />
+                      </div>
+
+                      {/* 2번 타래 인라인 텍스트 에디터 */}
+                      <textarea
+                        value={threadsList[1]?.content}
+                        onChange={(e) => updateThreadContent(2, e.target.value)}
+                        rows={3}
+                        placeholder="스레드 2번 (연결 타래) 내용을 입력하세요..."
+                        className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-900 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
+                      />
+
+                      {/* 인터랙션 아이콘 바 */}
+                      <div className="flex items-center gap-4 text-stone-600 pt-0.5">
+                        <Heart className="w-4 h-4 hover:text-rose-500 cursor-pointer" />
+                        <MessageCircle className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                        <Repeat className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                        <Send className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 하단 액션 버튼 바 */}
+                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyThreads}
+                      className="px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-stone-500" />
+                      <span>{isThreadsCopied ? "복사 완료 ✓" : "스레드 타래 복사"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => showToast("✨ Threads에 성공적으로 배포되었습니다!")}
+                      className="px-4 py-1.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                    >
+                      <Send className="w-3.5 h-3.5 text-[#8ECAE6]" />
+                      <span>Threads에 실제 게시</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 파일 업로드 숨김 인풋 */}
+              <input
+                type="file"
+                ref={platformFileInputRef}
+                onChange={handleUploadPlatformImage}
+                accept="image/*"
+                className="hidden"
+              />
+            </div>
+
+            {/* ──────── [우측 사이드 패널 (lg:col-span-4)]: 연계 원고 검수 + 원고 구성 ──────── */}
+            <div className="lg:col-span-4 space-y-4">
+              {/* 1. 상단: 연계 원고 검수 박스 (우측 사이드로 이동) */}
+              <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
+                  <div className="space-y-0.5">
+                    <p className="text-[11px] text-stone-700 font-medium">
+                      수정이 필요한 문자: <span className="font-black text-rose-500">2개</span> &nbsp;|&nbsp; 사실관계: <span className="font-black text-amber-600">2개</span> &nbsp;|&nbsp; 요구사항: <span className="font-bold text-stone-500">0개</span>
+                    </p>
+                    <p className="text-[10px] text-stone-400">
+                      포함 내용은 직접 확인해주세요.
+                    </p>
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-stone-900 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-xs">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#8ECAE6]" />
+                    <span>{activePlatform === "threads" ? "Threads" : "Instagram"} 연계 원고 검수</span>
+                  </div>
+                </div>
+
+                {/* 검수 항목 2개 카드 */}
+                <div className="space-y-2.5">
+                  {/* 항목 1 */}
+                  <div className="p-3 rounded-xl bg-stone-50/90 border border-stone-200/70 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between pb-1 border-b border-stone-200/50">
+                      <span className="font-black text-stone-900 text-[11px] flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                        사실관계 - draft.도입
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFactCheck("fc-1")}
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${
+                          factCheckIssues[0].applied
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-stone-900 text-white hover:bg-black"
+                        }`}
+                      >
+                        {factCheckIssues[0].applied ? "반영 완료 ✓" : "원고 반영"}
+                      </button>
+                    </div>
+                    <p className="text-stone-700 font-semibold leading-relaxed text-[11px]">
+                      <span className="text-stone-500 font-bold">확인할 내용:</span> 발생장소
+                    </p>
+                    <p className="text-stone-600 leading-relaxed text-[11px]">
+                      <span className="text-stone-500 font-bold">이유:</span> 본문에 없는 발생장소가 언급되었거나 기업명을 사실했습니다.
+                    </p>
+                    <p className="text-stone-600 leading-relaxed text-[11px]">
+                      <span className="text-stone-500 font-bold">수정:</span> 발생 장소의 정보를 기관명의 발원장소로 수정합니다.
+                    </p>
+                    <p className="text-stone-500 leading-relaxed text-[10px] bg-white/70 p-1.5 rounded-lg border border-stone-200/50 font-mono">
+                      적용 근거: 이르쿠츠크 리스트 방역연구소의 위치가 시베리아 연방관구의 러시아 29개 주와 유대인 자치주 관할에 입각했다.
+                    </p>
+                  </div>
+
+                  {/* 항목 2 */}
+                  <div className="p-3 rounded-xl bg-stone-50/90 border border-stone-200/70 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between pb-1 border-b border-stone-200/50">
+                      <span className="font-black text-stone-900 text-[11px] flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
+                        사실관계 - draft.본문 3
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyFactCheck("fc-2")}
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${
+                          factCheckIssues[1].applied
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-stone-900 text-white hover:bg-black"
+                        }`}
+                      >
+                        {factCheckIssues[1].applied ? "반영 완료 ✓" : "원고 반영"}
+                      </button>
+                    </div>
+                    <p className="text-stone-700 font-semibold leading-relaxed text-[11px]">
+                      <span className="text-stone-500 font-bold">확인할 내용:</span> 미국과 유럽연합 보건당국은 신속하고 투명한 정보 공개를 촉구했습니다.
+                    </p>
+                    <p className="text-stone-600 leading-relaxed text-[11px]">
+                      <span className="text-stone-500 font-bold">이유:</span> 본문에서 미국 외의 보건당국은 사안을 예의주시하고 있다고 했으며, 신속하고 투명한 정보 공개 촉구 주체는 별도의 보도 자료 및 인물들의 발언으로 구성되어 있어 오해를 배제했습니다.
+                    </p>
+                    <p className="text-stone-600 leading-relaxed text-[11px]">
+                      <span className="text-stone-500 font-bold">수정:</span> 본문의 취지에 맞게 내부의 보건청장 모니터링 사업을 예의주시하고 있다고 수정합니다.
+                    </p>
+                    <p className="text-stone-500 leading-relaxed text-[10px] bg-white/70 p-1.5 rounded-lg border border-stone-200/50 font-mono">
+                      출처: "신속연구 투명성 정보 공개하라"
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. 하단: 원고 구성 바로가기 및 삽입 박스 */}
+              <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                  <div>
+                    <h3 className="text-xs font-black text-[#292929]">원고 구성</h3>
+                    <p className="text-[10px] text-stone-400">클릭 시 피드 원고에 해당 단락이 반영됩니다</p>
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded-md">
+                    총 6개 단락
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {[
+                    { id: "intro", label: "도입", text: draftSections.intro },
+                    { id: "body1", label: "본문 1", text: draftSections.body1 },
+                    { id: "body2", label: "본문 2", text: draftSections.body2 },
+                    { id: "body3", label: "본문 3", text: draftSections.body3 },
+                    { id: "outro", label: "마무리", text: draftSections.outro },
+                    { id: "hashtags", label: "해시태그", text: draftSections.hashtags }
+                  ].map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-stone-50/90 hover:bg-stone-100/90 border border-stone-200/80 text-left transition shadow-2xs group space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-stone-800">{item.label}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleInsertDraftSection(item.id)}
+                          className="px-2 py-0.5 rounded-lg bg-stone-900 text-white text-[10px] font-bold hover:bg-black transition cursor-pointer flex items-center gap-1 active:scale-95"
+                        >
+                          <Plus className="w-2.5 h-2.5 text-[#8ECAE6]" />
+                          <span>피드에 삽입</span>
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-stone-600 line-clamp-2 leading-relaxed">
+                        {item.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 전체 원고 원문 근거 대조 토글 */}
+                <div className="pt-2 border-t border-stone-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsAllSourceExpanded((prev) => !prev)}
+                    className="w-full flex items-center justify-between text-[11px] font-bold text-stone-600 hover:text-stone-950 transition cursor-pointer"
+                  >
+                    <span>▶ 전체 원고의 원문 근거 대조</span>
+                    {isAllSourceExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
+                  {isAllSourceExpanded && (
+                    <div className="mt-2 p-2.5 bg-stone-50 rounded-xl border border-stone-200/70 text-[11px] text-stone-700 leading-relaxed whitespace-pre-line animate-in fade-in">
+                      {activeArticle.content || "기사 원문 내용이 로드되었습니다."}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
       </div>
 
       {/* ──────────────────────────────────────────
@@ -1800,7 +2872,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
       {isPublishModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl space-y-4 text-center border border-white/80 animate-float-in">
-            <div className="w-12 h-12 rounded-xl bg-[#F4A940] text-white flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-[#8ECAE6] text-[#1E293B] flex items-center justify-center mx-auto shadow-xs">
               <Check className="w-6 h-6 stroke-[3]" />
             </div>
             <h3 className="text-lg font-black text-[#292B2F]">배포가 완료되었습니다</h3>
@@ -1835,7 +2907,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E7E2D9] bg-white/70 flex-shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-[#292B2F] text-[#FAF8F5] flex items-center justify-center shadow-2xs">
-                  <FileText className="w-4 h-4 text-[#0095F6]" />
+                  <FileText className="w-4 h-4 text-[#8ECAE6]" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -2085,15 +3157,15 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
         <div
           className={`fixed z-[99999] pointer-events-none -translate-x-1/2 -translate-y-full mb-3 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black shadow-2xl select-none animate-smooth-pop ${
             isFreeLayoutMode
-              ? "bg-[#0095F6] text-white border border-white/60 shadow-[0_4px_20px_rgba(0,149,246,0.6)]"
-              : "bg-[#18181B] text-[#F4A940] border border-[#F4A940]/50"
+              ? "bg-[#8ECAE6] text-[#1E293B] border border-white/60 shadow-[0_4px_20px_rgba(142,202,230,0.6)]"
+              : "bg-[#18181B] text-[#8ECAE6] border border-[#8ECAE6]/50"
           }`}
           style={{
             left: mousePos.x,
             top: mousePos.y
           }}
         >
-          <span className={`w-2 h-2 rounded-full ${isFreeLayoutMode ? "bg-white" : "bg-[#F4A940]"} animate-ping`} />
+          <span className={`w-2 h-2 rounded-full ${isFreeLayoutMode ? "bg-[#1E293B]" : "bg-[#8ECAE6]"} animate-ping`} />
           <span>{isFreeLayoutMode ? "✨ 자유 위치 이동" : "위치 이동"}</span>
         </div>
       )}
