@@ -249,6 +249,7 @@ export default function ArticleWriter({
   const editorRef = useRef(null);
   const bodyInputRef = useRef(null);
   const lastCaretRangeRef = useRef(null);
+  const draggedTextRangeRef = useRef(null);
 
   // 에디터 내 커서 위치 상시 추적 및 저장
   const saveLastCaretRange = () => {
@@ -444,6 +445,32 @@ export default function ArticleWriter({
         }
       }
     }
+    // 기존 본문에 박스 형태로 삽입되어 있던 사진 컨테이너 및 오버레이 정규화 (블러 제거, 우측 상단 심플 이모지 버튼 배치)
+    if (bodyInputRef.current) {
+      const photoBoxes = bodyInputRef.current.querySelectorAll('.article-photo-container > div');
+      photoBoxes.forEach((box) => {
+        if (box.classList.contains("border") || box.classList.contains("rounded-2xl") || box.classList.contains("bg-slate-900/5")) {
+          box.className = "relative overflow-hidden";
+        }
+      });
+
+      const photoOverlays = bodyInputRef.current.querySelectorAll('.photo-action-overlay');
+      photoOverlays.forEach((overlay) => {
+        if (
+          overlay.classList.contains("inset-0") ||
+          overlay.classList.contains("backdrop-blur-[2px]") ||
+          overlay.classList.contains("justify-center") ||
+          overlay.innerHTML.includes("🔄") ||
+          overlay.innerHTML.includes("🗑️") ||
+          overlay.innerHTML.includes("w-7 h-7")
+        ) {
+          const parentFigure = overlay.closest('.article-photo-container');
+          const photoId = parentFigure?.dataset.photoId || `photo-${Date.now()}`;
+          overlay.className = "photo-action-overlay absolute top-2.5 right-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30";
+          overlay.innerHTML = `<button type="button" data-action="change-photo" data-photo-id="${photoId}" class="w-8 h-8 rounded-full bg-white/95 hover:bg-white text-slate-800 shadow-sm border border-stone-200 flex items-center justify-center transition cursor-pointer active:scale-95" title="사진 변경하기"><span class="text-sm font-bold leading-none select-none pointer-events-none text-slate-700">↻</span></button><button type="button" data-action="edit-photo" data-photo-id="${photoId}" class="w-8 h-8 rounded-full bg-white/95 hover:bg-white text-slate-800 shadow-sm border border-stone-200 flex items-center justify-center transition cursor-pointer active:scale-95" title="편집하기"><span class="text-sm font-bold leading-none select-none pointer-events-none text-slate-700">✎</span></button><button type="button" data-action="delete-photo" data-photo-id="${photoId}" class="w-8 h-8 rounded-full bg-white/95 hover:bg-rose-50 text-slate-800 hover:text-rose-600 shadow-sm border border-stone-200 flex items-center justify-center transition cursor-pointer active:scale-95" title="삭제하기"><span class="text-sm font-bold leading-none select-none pointer-events-none text-slate-700 hover:text-rose-600">✕</span></button>`;
+        }
+      });
+    }
   }, [article.content, activeSidePanel, factCheckActive]);
 
   // 텍스트 드래그 선택 서식 툴바 감지 (contentEditable Selection 감지)
@@ -629,7 +656,7 @@ export default function ArticleWriter({
         setPhotos(updatedPhotos);
 
         // 본문 에디터에 사진 렌더링 블록 삽입
-        const photoHtml = `<figure style="margin: 20px 0; text-align: center;" contenteditable="false"><img src="${uploadEvt.target.result}" alt="${file.name}" style="max-width: 100%; border-radius: 12px; margin: 0 auto; display: block; border: 1px solid rgba(0,0,0,0.08);" /><figcaption style="font-size: 11px; color: #64748b; margin-top: 8px; font-weight: 500;">▲ ${newPhoto.caption} (출처: 직접 첨부)</figcaption></figure><p><br></p>`;
+        const photoHtml = `<figure style="margin: 20px 0; text-align: center;" contenteditable="false"><img src="${uploadEvt.target.result}" alt="${file.name}" style="max-width: 100%; margin: 0 auto; display: block;" /><figcaption style="font-size: 11px; color: #64748b; margin-top: 8px; font-weight: 500;">▲ ${newPhoto.caption} (출처: 직접 첨부)</figcaption></figure><p><br></p>`;
 
         if (bodyInputRef.current) {
           bodyInputRef.current.focus();
@@ -690,7 +717,7 @@ export default function ArticleWriter({
     }
 
     const photoId = photo.id || `photo-${Date.now()}`;
-    const photoHtml = `<figure class="article-photo-container group relative my-6 select-none cursor-grab active:cursor-grabbing transition-all" data-photo-id="${photoId}" draggable="true" contenteditable="false"><div class="relative rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm bg-slate-900/5 group-hover:shadow-md transition-all"><div class="absolute top-2 left-2 z-20 px-2.5 py-1 rounded-md bg-black/65 backdrop-blur-md text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-none shadow-xs"><span>⠿ 드래그하여 텍스트 끝나는 지점으로 이동</span></div><img src="${photo.url}" alt="${photo.caption || ''}" class="w-full max-h-[420px] object-cover block pointer-events-none" style="${photo.filterStyle ? `filter: ${photo.filterStyle};` : ''} ${photo.rotation ? `transform: rotate(${photo.rotation}deg);` : ''}" /><div class="photo-action-overlay absolute inset-0 bg-slate-950/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center gap-2 z-30"><button type="button" data-action="change-photo" data-photo-id="${photoId}" class="inline-flex items-center gap-1.5 px-3 py-2 bg-white/95 hover:bg-white text-slate-900 rounded-xl text-xs font-extrabold shadow-lg hover:shadow-xl transition cursor-pointer active:scale-95"><svg class="w-3.5 h-3.5 pointer-events-none text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg><span class="pointer-events-none">사진 변경하기</span></button><button type="button" data-action="edit-photo" data-photo-id="${photoId}" class="inline-flex items-center gap-1.5 px-3 py-2 bg-white/95 hover:bg-white text-slate-900 rounded-xl text-xs font-extrabold shadow-lg hover:shadow-xl transition cursor-pointer active:scale-95"><svg class="w-3.5 h-3.5 pointer-events-none text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18m-5 4v6m-4-6v6"></path></svg><span class="pointer-events-none">편집하기</span></button><button type="button" data-action="delete-photo" data-photo-id="${photoId}" class="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-extrabold shadow-lg hover:shadow-xl transition cursor-pointer active:scale-95"><svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg><span class="pointer-events-none">삭제하기</span></button></div></div><figcaption class="text-center text-xs text-slate-500 mt-2 font-medium">▲ ${photo.caption || '보도 사진'} (출처: ${photo.source || '동아일보 DB'})</figcaption></figure><p><br></p>`;
+    const photoHtml = `<figure class="article-photo-container group relative my-6 select-none cursor-grab active:cursor-grabbing transition-all" data-photo-id="${photoId}" draggable="true" contenteditable="false"><div class="relative overflow-hidden"><div class="absolute top-2.5 left-2.5 z-20 px-2.5 py-1 rounded-md bg-black/65 backdrop-blur-md text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 pointer-events-none shadow-xs"><span>⠿ 드래그하여 텍스트 끝나는 지점으로 이동</span></div><img src="${photo.url}" alt="${photo.caption || ''}" class="w-full max-h-[520px] object-cover block pointer-events-none" style="${photo.filterStyle ? `filter: ${photo.filterStyle};` : ''} ${photo.rotation ? `transform: rotate(${photo.rotation}deg);` : ''}" /><div class="photo-action-overlay absolute top-2.5 right-2.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30"><button type="button" data-action="change-photo" data-photo-id="${photoId}" class="w-8 h-8 rounded-full bg-white/95 hover:bg-white text-slate-800 shadow-sm border border-stone-200 flex items-center justify-center transition cursor-pointer active:scale-95" title="사진 변경하기"><span class="text-sm font-bold leading-none select-none pointer-events-none text-slate-700">↻</span></button><button type="button" data-action="edit-photo" data-photo-id="${photoId}" class="w-8 h-8 rounded-full bg-white/95 hover:bg-white text-slate-800 shadow-sm border border-stone-200 flex items-center justify-center transition cursor-pointer active:scale-95" title="편집하기"><span class="text-sm font-bold leading-none select-none pointer-events-none text-slate-700">✎</span></button><button type="button" data-action="delete-photo" data-photo-id="${photoId}" class="w-8 h-8 rounded-full bg-white/95 hover:bg-rose-50 text-slate-800 hover:text-rose-600 shadow-sm border border-stone-200 flex items-center justify-center transition cursor-pointer active:scale-95" title="삭제하기"><span class="text-sm font-bold leading-none select-none pointer-events-none text-slate-700 hover:text-rose-600">✕</span></button></div></div><figcaption class="text-center text-xs text-slate-500 mt-2 font-medium">▲ ${photo.caption || '보도 사진'} (출처: ${photo.source || '동아일보 DB'})</figcaption></figure><p><br></p>`;
 
     if (bodyInputRef.current) {
       bodyInputRef.current.focus();
@@ -791,23 +818,86 @@ export default function ArticleWriter({
     setTimeout(() => setToastMessage(""), 2500);
   };
 
-  // 본문 내 사진 드래그 앤 드롭 이동 (텍스트가 끝나는 지점마다 이동 가능)
+  // 브라우저 호환 캐럿 Range 계산 헬퍼
+  const getCaretRangeFromPoint = (x, y) => {
+    if (document.caretRangeFromPoint) {
+      return document.caretRangeFromPoint(x, y);
+    }
+    if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(x, y);
+      if (pos) {
+        const range = document.createRange();
+        range.setStart(pos.offsetNode, pos.offset);
+        range.collapse(true);
+        return range;
+      }
+    }
+    return null;
+  };
+
+  // 본문 내 사진 및 텍스트 문장 드래그 앤 드롭 이동
   const handleEditorDragStart = (e) => {
-    const photoCard = e.target.closest(".article-photo-container");
+    const photoCard = e.target.closest?.(".article-photo-container");
     if (photoCard) {
       e.dataTransfer.setData("photoId", photoCard.dataset.photoId);
       e.dataTransfer.effectAllowed = "move";
-      photoCard.classList.add("opacity-40", "ring-2", "ring-[#8ECAE6]");
+      photoCard.classList.add("opacity-40", "ring-2", "ring-black/80", "shadow-md");
+
+      // 커서보단 살짝 큰 크기 (76x76px), 블러 및 투명감있는 실버 테두리 고스트 생성
+      const imgEl = photoCard.querySelector("img");
+      if (imgEl && e.dataTransfer.setDragImage) {
+        const ghost = document.createElement("div");
+        ghost.style.position = "fixed";
+        ghost.style.top = "-9999px";
+        ghost.style.left = "-9999px";
+        ghost.style.width = "76px";
+        ghost.style.height = "76px";
+        ghost.style.borderRadius = "14px";
+        ghost.style.overflow = "hidden";
+        ghost.style.boxShadow = "0 8px 24px rgba(0,0,0,0.25)";
+        ghost.style.border = "1.5px solid rgba(255, 255, 255, 0.85)";
+        ghost.style.background = "rgba(226, 232, 240, 0.6)";
+        ghost.style.backdropFilter = "blur(8px)";
+        ghost.style.opacity = "0.85";
+        ghost.style.pointerEvents = "none";
+        ghost.style.zIndex = "999999";
+
+        const ghostImg = document.createElement("img");
+        ghostImg.src = imgEl.src;
+        ghostImg.style.width = "100%";
+        ghostImg.style.height = "100%";
+        ghostImg.style.objectFit = "cover";
+        ghostImg.style.filter = "blur(2px)";
+        ghost.appendChild(ghostImg);
+
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 38, 38);
+        setTimeout(() => ghost.remove(), 100);
+      }
+      return;
+    }
+
+    // 텍스트/문장 드래그 시작 처리
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      const selectedRange = sel.getRangeAt(0);
+      draggedTextRangeRef.current = selectedRange.cloneRange();
+      const text = sel.toString();
+      e.dataTransfer.setData("text/plain", text);
+      e.dataTransfer.setData("draggedSentenceText", text);
+      e.dataTransfer.effectAllowed = "move";
     }
   };
 
   const handleEditorDragEnd = (e) => {
-    const photoCard = e.target.closest(".article-photo-container");
+    const photoCard = e.target.closest?.(".article-photo-container");
     if (photoCard) {
-      photoCard.classList.remove("opacity-40", "ring-2", "ring-[#8ECAE6]");
+      photoCard.classList.remove("opacity-40", "ring-2", "ring-black/80", "shadow-md");
     }
-    const indicators = bodyInputRef.current?.querySelectorAll(".photo-drop-indicator");
-    indicators?.forEach((ind) => ind.remove());
+    const photoIndicator = bodyInputRef.current?.querySelector(".photo-drop-indicator");
+    if (photoIndicator) photoIndicator.remove();
+    const textIndicator = document.getElementById("sentence-drop-caret-indicator");
+    if (textIndicator) textIndicator.remove();
   };
 
   const handleEditorDragOver = (e) => {
@@ -815,81 +905,112 @@ export default function ArticleWriter({
     e.dataTransfer.dropEffect = "move";
     if (!bodyInputRef.current) return;
 
-    // 에디터 내의 문단 및 텍스트 블록 요소 탐색
-    const children = Array.from(bodyInputRef.current.children).filter(
-      (el) => !el.classList.contains("photo-drop-indicator")
-    );
+    const isPhotoDrag = e.dataTransfer.types.includes("photoid") || e.dataTransfer.types.includes("photoId");
 
-    if (children.length === 0) return;
+    if (isPhotoDrag) {
+      // 사진 드래그인 경우: 텍스트 캐럿 숨기기
+      const textIndicator = document.getElementById("sentence-drop-caret-indicator");
+      if (textIndicator) textIndicator.style.display = "none";
 
-    // 마우스 Y좌표와 가장 가까운 텍스트 끝 지점 탐색
-    let targetChild = null;
-    let insertAfter = false;
+      const children = Array.from(bodyInputRef.current.children).filter(
+        (el) => !el.classList.contains("photo-drop-indicator")
+      );
+      if (children.length === 0) return;
 
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      const box = child.getBoundingClientRect();
-      const midY = box.top + box.height / 2;
+      let targetChild = null;
+      let insertAfter = false;
 
-      if (e.clientY < midY) {
-        targetChild = child;
-        insertAfter = false;
-        break;
-      } else if (i === children.length - 1 || e.clientY < box.bottom) {
-        targetChild = child;
-        insertAfter = true;
-        break;
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i];
+        const box = child.getBoundingClientRect();
+        const midY = box.top + box.height / 2;
+
+        if (e.clientY < midY) {
+          targetChild = child;
+          insertAfter = false;
+          break;
+        } else if (i === children.length - 1 || e.clientY < box.bottom) {
+          targetChild = child;
+          insertAfter = true;
+          break;
+        }
       }
-    }
 
-    if (!targetChild) {
-      targetChild = children[children.length - 1];
-      insertAfter = true;
-    }
+      if (!targetChild) {
+        targetChild = children[children.length - 1];
+        insertAfter = true;
+      }
 
-    // 기존 드롭 인디케이터 가져오거나 생성
-    let indicator = bodyInputRef.current.querySelector(".photo-drop-indicator");
-    if (!indicator) {
-      indicator = document.createElement("div");
-      indicator.className =
-        "photo-drop-indicator my-3 h-2 rounded-full bg-[#8ECAE6] shadow-[0_0_12px_rgba(142,202,230,0.85)] flex items-center justify-center pointer-events-none select-none transition-all";
-      indicator.innerHTML =
-        '<span class="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[9px] font-bold shadow-xs">📍 텍스트 끝나는 지점에 사진 배치</span>';
-    }
+      // 심플한 검정색 & 투명감 있는 실버 스타일 사진 인디케이터
+      let indicator = bodyInputRef.current.querySelector(".photo-drop-indicator");
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.className =
+          "photo-drop-indicator my-3 h-1.5 rounded-full bg-slate-900/85 backdrop-blur-md shadow-[0_2px_8px_rgba(0,0,0,0.2)] border border-slate-300/40 flex items-center justify-center pointer-events-none select-none transition-all";
+        indicator.innerHTML =
+          '<span class="px-2.5 py-0.5 rounded-full bg-stone-900 text-white text-[9px] font-bold shadow-sm border border-stone-600/40">📍 텍스트 끝 지점에 사진 배치</span>';
+      }
 
-    // 타겟 텍스트 블록의 끝 지점(바로 뒤)에 인디케이터 배치
-    if (insertAfter) {
-      if (targetChild.nextSibling !== indicator) {
-        bodyInputRef.current.insertBefore(indicator, targetChild.nextSibling);
+      if (insertAfter) {
+        if (targetChild.nextSibling !== indicator) {
+          bodyInputRef.current.insertBefore(indicator, targetChild.nextSibling);
+        }
+      } else {
+        if (targetChild !== indicator) {
+          bodyInputRef.current.insertBefore(indicator, targetChild);
+        }
       }
     } else {
-      if (targetChild !== indicator) {
-        bodyInputRef.current.insertBefore(indicator, targetChild);
+      // 텍스트 / 문장 드래그 중인 경우: 심플한 검정색 / 투명감 있는 실버 캐럿 인디케이터 (DOM 변경 없이 오버레이 표시)
+      const photoInd = bodyInputRef.current.querySelector(".photo-drop-indicator");
+      if (photoInd) photoInd.remove();
+
+      const range = getCaretRangeFromPoint(e.clientX, e.clientY);
+      if (range && bodyInputRef.current.contains(range.commonAncestorContainer)) {
+        let textIndicator = document.getElementById("sentence-drop-caret-indicator");
+        if (!textIndicator) {
+          textIndicator = document.createElement("div");
+          textIndicator.id = "sentence-drop-caret-indicator";
+          textIndicator.style.position = "fixed";
+          textIndicator.style.width = "2.5px";
+          textIndicator.style.borderRadius = "2px";
+          textIndicator.style.backgroundColor = "#18181B"; // 심플한 검정색
+          textIndicator.style.boxShadow = "0 0 6px rgba(0,0,0,0.35), 0 0 1px rgba(255,255,255,0.9)"; // 투명감 있는 실버
+          textIndicator.style.pointerEvents = "none";
+          textIndicator.style.zIndex = "999999";
+          document.body.appendChild(textIndicator);
+        }
+
+        const rects = range.getClientRects();
+        const rect = rects.length > 0 ? rects[0] : range.getBoundingClientRect();
+        if (rect && rect.top > 0) {
+          textIndicator.style.display = "block";
+          textIndicator.style.left = `${rect.left}px`;
+          textIndicator.style.top = `${rect.top}px`;
+          textIndicator.style.height = `${Math.max(16, rect.height || 20)}px`;
+        }
       }
     }
   };
 
   const handleEditorDrop = (e) => {
     e.preventDefault();
+
+    // 모든 인디케이터 정리
+    const photoIndicator = bodyInputRef.current?.querySelector(".photo-drop-indicator");
+    if (photoIndicator) photoIndicator.remove();
+    const textIndicator = document.getElementById("sentence-drop-caret-indicator");
+    if (textIndicator) textIndicator.remove();
+
     const photoId = e.dataTransfer.getData("photoId");
-    if (!photoId || !bodyInputRef.current) return;
+    if (photoId) {
+      if (!bodyInputRef.current) return;
+      const photoCard = bodyInputRef.current.querySelector(`[data-photo-id="${photoId}"]`);
+      if (!photoCard) return;
 
-    const photoCard = bodyInputRef.current.querySelector(`[data-photo-id="${photoId}"]`);
-    if (!photoCard) return;
+      photoCard.classList.remove("opacity-40", "ring-2", "ring-black/80", "shadow-md");
 
-    photoCard.classList.remove("opacity-40", "ring-2", "ring-[#8ECAE6]");
-
-    // 현재 표시 중인 드롭 인디케이터 위치로 정확히 사진 이동
-    const indicator = bodyInputRef.current.querySelector(".photo-drop-indicator");
-    if (indicator) {
-      bodyInputRef.current.insertBefore(photoCard, indicator);
-      indicator.remove();
-    } else {
-      // 인디케이터가 없을 경우 caretRangeFromPoint로 안전하게 배치
-      let range = null;
-      if (document.caretRangeFromPoint) {
-        range = document.caretRangeFromPoint(e.clientX, e.clientY);
-      }
+      let range = getCaretRangeFromPoint(e.clientX, e.clientY);
       if (range && bodyInputRef.current.contains(range.startContainer)) {
         let targetNode = range.startContainer;
         while (targetNode && targetNode.parentNode !== bodyInputRef.current && targetNode !== bodyInputRef.current) {
@@ -903,14 +1024,92 @@ export default function ArticleWriter({
       } else {
         bodyInputRef.current.appendChild(photoCard);
       }
+
+      setArticle((prev) => ({
+        ...prev,
+        content: bodyInputRef.current.innerHTML
+      }));
+      setToastMessage("사진이 텍스트가 끝나는 지점으로 이동되었습니다.");
+      setTimeout(() => setToastMessage(""), 2000);
+      return;
     }
 
-    setArticle((prev) => ({
-      ...prev,
-      content: bodyInputRef.current.innerHTML
-    }));
-    setToastMessage("사진이 텍스트가 끝나는 지점으로 이동되었습니다.");
-    setTimeout(() => setToastMessage(""), 2000);
+    // 텍스트/문장 드롭 처리 (Cut & Move)
+    const textToInsert =
+      e.dataTransfer.getData("draggedSentenceText") ||
+      e.dataTransfer.getData("text/plain");
+
+    if (textToInsert && bodyInputRef.current) {
+      const initialDropRange = getCaretRangeFromPoint(e.clientX, e.clientY);
+      if (!initialDropRange || !bodyInputRef.current.contains(initialDropRange.commonAncestorContainer)) {
+        return;
+      }
+
+      // 1. 드롭 위치가 원본 드래그 선택 영역 내부인지 확인 (동일 문장 위 드롭 시 무시)
+      if (draggedTextRangeRef.current) {
+        try {
+          const isInside =
+            draggedTextRangeRef.current.comparePoint(initialDropRange.startContainer, initialDropRange.startOffset) === 0;
+          if (isInside) {
+            draggedTextRangeRef.current = null;
+            return;
+          }
+        } catch {
+          // ignore
+        }
+
+        // 2. 원본 드래그 위치에서 해당 문장 텍스트 삭제 (Cut)
+        try {
+          draggedTextRangeRef.current.deleteContents();
+        } catch (err) {
+          console.warn("deleteContents failed", err);
+        }
+        draggedTextRangeRef.current = null;
+      }
+
+      // 3. 삭제 후 최신 DOM 위치 기준 드롭 Range 재계산
+      const finalDropRange = getCaretRangeFromPoint(e.clientX, e.clientY) || initialDropRange;
+
+      if (finalDropRange && bodyInputRef.current.contains(finalDropRange.commonAncestorContainer)) {
+        const trimmed = textToInsert.trim();
+        const insertText = (trimmed.endsWith(".") || trimmed.endsWith("?") || trimmed.endsWith("!"))
+          ? trimmed + " "
+          : trimmed + " ";
+
+        const textNode = document.createTextNode(insertText);
+        finalDropRange.insertNode(textNode);
+
+        // 4. 삽입된 문장 뒤로 커서 이동
+        const newRange = document.createRange();
+        newRange.setStartAfter(textNode);
+        newRange.collapse(true);
+        const sel = window.getSelection();
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(newRange);
+          lastCaretRangeRef.current = newRange;
+        }
+      }
+
+      // 5. article.content 데이터에 즉시 반영 및 저장
+      const updatedContent = bodyInputRef.current.innerHTML;
+      setArticle((prev) => ({
+        ...prev,
+        content: updatedContent
+      }));
+
+      // 로컬 스토리지 드래프트 즉시 저장 동기화
+      try {
+        const saved = localStorage.getItem("team01_article_draft_v1");
+        const parsed = saved ? JSON.parse(saved) : {};
+        localStorage.setItem("team01_article_draft_v1", JSON.stringify({ ...parsed, content: updatedContent }));
+      } catch {
+        // ignore
+      }
+
+      setToastMessage("✨ 문장이 새 위치로 이동되었습니다.");
+      setTimeout(() => setToastMessage(""), 2000);
+    }
   };
 
   // 본문 내 사진 호버 액션 클릭 핸들러 (사진 변경하기, 편집하기, 삭제하기)
@@ -1054,7 +1253,7 @@ export default function ArticleWriter({
           {/* 대표 이미지 (있을 경우) */}
           {photos.length > 0 && (
             <div className="space-y-2 pt-2">
-              <div className="rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+              <div className="overflow-hidden">
                 <img src={photos[0].url} alt="main article" className="w-full h-auto object-cover max-h-[500px]" />
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
@@ -1622,7 +1821,7 @@ export default function ArticleWriter({
                   {/* 대표 이미지 (있을 경우) */}
                   {photos.length > 0 && (
                     <div className="space-y-2 pt-2">
-                      <div className="rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                      <div className="overflow-hidden">
                         <img src={photos[0].url} alt="main article" className="w-full h-auto object-cover" />
                       </div>
                       <p className="text-[11px] text-slate-500 font-medium">

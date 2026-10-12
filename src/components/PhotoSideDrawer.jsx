@@ -431,8 +431,8 @@ export default function PhotoSideDrawer({
                             alt={photo.caption}
                             className="w-full h-full object-cover"
                           />
-                          {/* 호버 시 나타나는 투명감 있고 심플한 이모지 액션 바 */}
-                          <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 backdrop-blur-[2px]">
+                          {/* 이미지 오른쪽 상단: 이모지 버튼 + 호버 시 미리보기 텍스트 확장 */}
+                          <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                             <button
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
@@ -444,11 +444,13 @@ export default function PhotoSideDrawer({
                                 }
                                 if (onInsertPhoto) onInsertPhoto(photo);
                               }}
-                              className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
-                              title="이미지 첨부하기"
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                              title="기사에 바로 첨부하기"
                             >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>이미지 첨부하기</span>
+                              <span className="text-xs leading-none select-none">➕</span>
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                기사에 바로 첨부하기
+                              </span>
                             </button>
                             <button
                               type="button"
@@ -457,15 +459,18 @@ export default function PhotoSideDrawer({
                                 setSelectedPhoto(photo);
                                 if (onOpenImageEditor) onOpenImageEditor(photo);
                               }}
-                              className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="편집하기"
                             >
-                              <SlidersHorizontal className="w-3.5 h-3.5" />
-                              <span>편집하기</span>
+                              <span className="text-xs leading-none select-none">✎</span>
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                편집하기
+                              </span>
                             </button>
                           </div>
+
                           {isSelected && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md pointer-events-none">
+                            <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md pointer-events-none z-10">
                               <Check className="w-3 h-3 stroke-[3]" />
                             </div>
                           )}
@@ -517,8 +522,8 @@ export default function PhotoSideDrawer({
                             alt={photo.caption}
                             className="w-full h-full object-cover"
                           />
-                          {/* 호버 시 나타나는 투명감 있고 심플한 이모지 액션 바 */}
-                          <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 backdrop-blur-[2px]">
+                          {/* 이미지 오른쪽 상단: 이모지 버튼 + 호버 시 미리보기 텍스트 확장 */}
+                          <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                             <button
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
@@ -530,11 +535,13 @@ export default function PhotoSideDrawer({
                                 }
                                 if (onInsertPhoto) onInsertPhoto(photo);
                               }}
-                              className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
-                              title="이미지 첨부하기"
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                              title="기사에 바로 첨부하기"
                             >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>이미지 첨부하기</span>
+                              <span className="text-xs leading-none select-none">➕</span>
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                기사에 바로 첨부하기
+                              </span>
                             </button>
                             <button
                               type="button"
@@ -543,15 +550,18 @@ export default function PhotoSideDrawer({
                                 setSelectedPhoto(photo);
                                 if (onOpenImageEditor) onOpenImageEditor(photo);
                               }}
-                              className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="편집하기"
                             >
-                              <SlidersHorizontal className="w-3.5 h-3.5" />
-                              <span>편집하기</span>
+                              <span className="text-xs leading-none select-none">✎</span>
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                편집하기
+                              </span>
                             </button>
                           </div>
+
                           {isSelected && (
-                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md pointer-events-none">
+                            <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md pointer-events-none z-10">
                               <Check className="w-3 h-3 stroke-[3]" />
                             </div>
                           )}
@@ -609,8 +619,8 @@ export default function PhotoSideDrawer({
                       <span className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold">
                         불러온 사진
                       </span>
-                      {/* 호버 시 나타나는 투명감 있고 심플한 이모지 액션 바 */}
-                      <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 backdrop-blur-[2px]">
+                      {/* 이미지 오른쪽 상단: 이모지 버튼 + 호버 시 미리보기 텍스트 확장 */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
@@ -629,11 +639,13 @@ export default function PhotoSideDrawer({
                             }
                             if (onInsertPhoto) onInsertPhoto(p);
                           }}
-                          className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
-                          title="이미지 첨부하기"
+                          className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                          title="기사에 바로 첨부하기"
                         >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>이미지 첨부하기</span>
+                          <span className="text-xs leading-none select-none">➕</span>
+                          <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                            기사에 바로 첨부하기
+                          </span>
                         </button>
                         <button
                           type="button"
@@ -649,11 +661,13 @@ export default function PhotoSideDrawer({
                             };
                             if (onOpenImageEditor) onOpenImageEditor(p);
                           }}
-                          className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                          className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                           title="편집하기"
                         >
-                          <SlidersHorizontal className="w-3.5 h-3.5" />
-                          <span>편집하기</span>
+                          <span className="text-xs leading-none select-none">✎</span>
+                          <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                            편집하기
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -718,41 +732,46 @@ export default function PhotoSideDrawer({
                           alt={photo.caption}
                           className="w-full h-full object-cover"
                         />
-                        {/* 호버 시 나타나는 투명감 있고 심플한 이모지 액션 바 */}
-                        <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-1.5 backdrop-blur-[2px]">
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedPhoto(photo);
-                              if (onInsertPhoto) onInsertPhoto(photo);
-                            }}
-                            className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
-                            title="이미지 첨부하기"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>이미지 첨부하기</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedPhoto(photo);
-                              if (onOpenImageEditor) onOpenImageEditor(photo);
-                            }}
-                            className="px-2.5 py-1.5 rounded-full bg-white/85 hover:bg-white text-slate-800 text-[11px] font-semibold backdrop-blur-md shadow-sm border border-white/60 transition cursor-pointer flex items-center gap-1 active:scale-95"
-                            title="편집하기"
-                          >
-                            <SlidersHorizontal className="w-3.5 h-3.5" />
-                            <span>편집하기</span>
-                          </button>
-                        </div>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md pointer-events-none">
-                            <Check className="w-3 h-3 stroke-[3]" />
+                          {/* 이미지 오른쪽 상단: 이모지 버튼 + 호버 시 미리보기 텍스트 확장 */}
+                          <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPhoto(photo);
+                                if (onInsertPhoto) onInsertPhoto(photo);
+                              }}
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                              title="기사에 바로 첨부하기"
+                            >
+                              <span className="text-xs leading-none select-none">➕</span>
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                기사에 바로 첨부하기
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPhoto(photo);
+                                if (onOpenImageEditor) onOpenImageEditor(photo);
+                              }}
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                              title="편집하기"
+                            >
+                              <span className="text-xs leading-none select-none">✎</span>
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                편집하기
+                              </span>
+                            </button>
                           </div>
-                        )}
+
+                          {isSelected && (
+                            <div className="absolute top-2 left-2 w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md pointer-events-none z-10">
+                              <Check className="w-3 h-3 stroke-[3]" />
+                            </div>
+                          )}
                       </div>
                       <div className="px-0.5">
                         <p className="text-xs font-semibold text-slate-800 leading-snug line-clamp-1">

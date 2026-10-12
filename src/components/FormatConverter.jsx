@@ -1062,250 +1062,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
     { label: "실버 그레이", value: "#A1A1AA" }
   ];
 
-  // ────────────────────────────────────────────────────────
-  // ⭐ 해당 텍스트 박스 바로 위에 뜨는 플로팅 텍스트 툴바 컴포넌트
-  // 텍스트 박스를 누르면 바가 올라오고, 마우스가 인터랙션 영역을 완전히 벗어나면 그라데이션으로 부드럽게 사라짐
-  // ────────────────────────────────────────────────────────
-  const renderFloatingToolbar = (field) => {
-    const isVisible = activeField === field && isMouseOverActiveZone;
-    const fStyle = (activeCard.styles || defaultStyles)[field] || defaultStyles[field];
 
-    return (
-      <div
-        className={`absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-out select-none ${
-          isVisible
-            ? "opacity-100 translate-y-0 scale-100 pointer-events-auto filter-none"
-            : "opacity-0 translate-y-2 scale-95 pointer-events-none filter blur-[2px]"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-        onMouseEnter={() => setIsMouseOverActiveZone(true)}
-      >
-        {/* 마우스가 텍스트 박스에서 툴바로 이동할 때 연결을 유지해주는 투명 히트 브릿지 */}
-        <div className="absolute inset-x-0 -bottom-3.5 h-4 pointer-events-auto" />
-        <div className="bg-gradient-to-r from-white/95 via-white/90 to-white/95 backdrop-blur-xl rounded-xl border border-white/80 shadow-[0_12px_36px_rgba(0,0,0,0.18)] px-2.5 py-1 flex items-center gap-1.5 transition-all">
-          {/* 1. 폰트 크기 조절 (16 ↑↓) */}
-          <div className="flex items-center gap-1 pl-1">
-            <span className="text-[11px] font-bold font-mono text-[#292B2F] min-w-[18px] text-center">
-              {fStyle.fontSize}
-            </span>
-            <div className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => updateFieldStyle(field, "fontSize", Math.min(64, fStyle.fontSize + 2))}
-                className="p-0.5 text-stone-500 hover:text-black cursor-pointer"
-                title="글자 크기 키우기"
-              >
-                <ChevronUp className="w-2.5 h-2.5 stroke-[2.5]" />
-              </button>
-              <button
-                type="button"
-                onClick={() => updateFieldStyle(field, "fontSize", Math.max(10, fStyle.fontSize - 2))}
-                className="p-0.5 text-stone-500 hover:text-black cursor-pointer"
-                title="글자 크기 줄이기"
-              >
-                <ChevronDown className="w-2.5 h-2.5 stroke-[2.5]" />
-              </button>
-            </div>
-          </div>
-
-          <div className="h-3.5 w-px bg-stone-200" />
-
-          {/* 2. 글자 색상 선택 (A & Palette) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-stone-100 text-xs font-black cursor-pointer transition"
-              title="글자 색상 변경"
-              style={{ color: fStyle.color }}
-            >
-              <span className="underline decoration-2">A</span>
-              <Palette className="w-3 h-3 text-stone-500" />
-            </button>
-
-            {showColorPicker && (
-              <div className="absolute bottom-full mb-2 left-0 z-50 bg-white/95 backdrop-blur-xl rounded-2xl p-2 shadow-2xl border border-stone-200/80 flex gap-1.5 animate-smooth-pop">
-                {colorPalette.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => {
-                      updateFieldStyle(field, "color", item.value);
-                      setShowColorPicker(false);
-                    }}
-                    className="w-5 h-5 rounded-full border border-stone-300 shadow-2xs hover:scale-110 transition-transform cursor-pointer"
-                    style={{ backgroundColor: item.value }}
-                    title={item.label}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="h-3.5 w-px bg-stone-200" />
-
-          {/* 3. 서식: Bold, Italic, Underline, Strikethrough */}
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => updateFieldStyle(field, "isBold", !fStyle.isBold)}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs transition cursor-pointer ${
-                fStyle.isBold ? "bg-stone-900 text-white font-black" : "text-stone-700 hover:bg-stone-100"
-              }`}
-              title="굵게 (Bold)"
-            >
-              <Bold className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => updateFieldStyle(field, "isItalic", !fStyle.isItalic)}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs transition cursor-pointer ${
-                fStyle.isItalic ? "bg-stone-900 text-white" : "text-stone-700 hover:bg-stone-100"
-              }`}
-              title="기울임 (Italic)"
-            >
-              <Italic className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => updateFieldStyle(field, "isUnderline", !fStyle.isUnderline)}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs transition cursor-pointer ${
-                fStyle.isUnderline ? "bg-stone-900 text-white" : "text-stone-700 hover:bg-stone-100"
-              }`}
-              title="밑줄 (Underline)"
-            >
-              <Underline className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => updateFieldStyle(field, "isStrike", !fStyle.isStrike)}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs transition cursor-pointer ${
-                fStyle.isStrike ? "bg-stone-900 text-white" : "text-stone-700 hover:bg-stone-100"
-              }`}
-              title="취소선 (Strikethrough)"
-            >
-              <Strikethrough className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="h-3.5 w-px bg-stone-200" />
-
-          {/* 4. 텍스트 정렬 */}
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => updateFieldStyle(field, "align", "left")}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs transition cursor-pointer ${
-                fStyle.align === "left" ? "bg-stone-900 text-white" : "text-stone-700 hover:bg-stone-100"
-              }`}
-              title="왼쪽 정렬"
-            >
-              <AlignLeft className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => updateFieldStyle(field, "align", "center")}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs transition cursor-pointer ${
-                fStyle.align === "center" ? "bg-stone-900 text-white" : "text-stone-700 hover:bg-stone-100"
-              }`}
-              title="가운데 정렬"
-            >
-              <AlignCenter className="w-3 h-3" />
-            </button>
-            <button
-              type="button"
-              onClick={() => updateFieldStyle(field, "align", "right")}
-              className={`w-6 h-6 rounded flex items-center justify-center text-xs transition cursor-pointer ${
-                fStyle.align === "right" ? "bg-stone-900 text-white" : "text-stone-700 hover:bg-stone-100"
-              }`}
-              title="오른쪽 정렬"
-            >
-              <AlignRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="h-3.5 w-px bg-stone-200" />
-
-          {/* 5. AI 마법사 / 다듬기 버튼 (화이트 글씨 & 솔리드 블랙) */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowAiMenu(!showAiMenu)}
-              className="bg-[#18181B] hover:bg-black text-white px-2 py-0.5 rounded-lg text-[11px] font-black flex items-center gap-1 shadow-xs cursor-pointer transition active:scale-95"
-              title="AI 문구 다듬기"
-            >
-              <Sparkles className="w-3 h-3 text-white" />
-              <span className="text-white">AI</span>
-            </button>
-
-            {/* AI 드롭다운 메뉴 */}
-            {showAiMenu && (
-              <div className="absolute bottom-full mb-2 right-0 z-50 bg-white/95 backdrop-blur-xl rounded-xl p-2 shadow-2xl border border-white/80 w-44 space-y-1 animate-smooth-pop">
-                <div className="text-[10px] font-mono text-stone-600 px-2 py-1 font-bold">
-                  AI 텍스트 최적화
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleApplyAiPreset("refine")}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-stone-100 text-xs font-medium flex items-center gap-2 cursor-pointer transition"
-                >
-                  <Wand2 className="w-3.5 h-3.5 text-stone-500" />
-                  <span>더 매력적으로 다듬기</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyAiPreset("hook")}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-stone-100 text-xs font-medium flex items-center gap-2 cursor-pointer transition"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>헤드라인 강화</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyAiPreset("formal")}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-stone-100 text-xs font-medium flex items-center gap-2 cursor-pointer transition"
-                >
-                  <Check className="w-3.5 h-3.5 text-stone-500" />
-                  <span>전문적인 어조</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleApplyAiPreset("summarize")}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-stone-100 text-xs font-medium flex items-center gap-2 cursor-pointer transition"
-                >
-                  <ArrowRight className="w-3.5 h-3.5 text-stone-500" />
-                  <span>핵심 요약</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="h-3.5 w-px bg-stone-200" />
-
-          {/* ⭐ 6. 잠금 및 잠금 해제 버튼: 오른쪽 맨 끝에 위치 */}
-          <button
-            type="button"
-            onClick={() => toggleFieldLock(field)}
-            className={`px-2 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer text-xs font-bold ${
-              fStyle.isLocked
-                ? "bg-[#8ECAE6] hover:bg-[#79BDE0] text-[#1E293B] shadow-xs font-black ring-1 ring-[#8ECAE6]"
-                : "text-stone-500 hover:text-black hover:bg-stone-100"
-            }`}
-            title={fStyle.isLocked ? "클릭하여 잠금 해제" : "영역 잠금"}
-          >
-            {fStyle.isLocked ? (
-              <>
-                <Lock className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span className="text-[11px] font-bold">잠금 해제</span>
-              </>
-            ) : (
-              <Unlock className="w-3.5 h-3.5 stroke-[2]" />
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   // ────────────────────────────────────────────────────────
   // ⭐ 개별 텍스트 블록 렌더링 컴포넌트
@@ -1339,7 +1096,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             setShowAiMenu(false);
           }
         }}
-        className={`relative inline-flex flex-col items-center w-fit max-w-[92%] p-2 rounded-xl transition-all ${
+        className={`relative inline-flex flex-col items-start w-[86%] p-2 rounded-xl transition-all ${
           s.isLocked
             ? "cursor-pointer opacity-85 ring-1 ring-amber-400/50 bg-amber-500/5 hover:ring-amber-400"
             : isBeingDragged
@@ -1359,21 +1116,18 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             : "cursor-grab active:cursor-grabbing hover:ring-1 hover:ring-white/25 hover:bg-white/5"
         } ${isBeingDragged ? "z-40" : ""}`}
       >
-        {/* 텍스트 박스 바로 위에 뜨는 툴바 */}
-        {renderFloatingToolbar(field)}
-
-        {/* 필드별 입력 엘리먼트 (텍스트 길이에 딱 맞게 테두리가 감싸지도록 CSS Grid Auto-fit 적용) */}
+        {/* 필드별 입력 엘리먼트 (중앙왼쪽 정렬 고정) */}
         {field === "tag" ? (
-          <div className="relative inline-grid items-center justify-center min-w-[50px] max-w-full">
+          <div className="relative inline-grid items-center justify-start min-w-[50px] max-w-full">
             {/* 텍스트 폭을 정확하게 측정해주는 고스트 엘리먼트 */}
             <span
               aria-hidden="true"
-              className="invisible col-start-1 row-start-1 px-2.5 py-0.5 whitespace-pre select-none pointer-events-none tracking-tight text-center"
+              className="invisible col-start-1 row-start-1 px-2.5 py-0.5 whitespace-pre select-none pointer-events-none tracking-tight text-left"
               style={{
                 fontSize: `${s.fontSize}px`,
                 fontWeight: s.isBold ? "bold" : "normal",
                 fontStyle: s.isItalic ? "italic" : "normal",
-                textAlign: s.align,
+                textAlign: "left",
                 fontFamily: "inherit"
               }}
             >
@@ -1397,9 +1151,9 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                 fontWeight: s.isBold ? "bold" : "normal",
                 fontStyle: s.isItalic ? "italic" : "normal",
                 textDecoration: `${s.isUnderline ? "underline " : ""}${s.isStrike ? "line-through" : ""}`.trim() || "none",
-                textAlign: s.align
+                textAlign: "left"
               }}
-              className={`col-start-1 row-start-1 w-full bg-transparent outline-none px-2.5 py-0.5 tracking-tight text-center transition ${
+              className={`col-start-1 row-start-1 w-full bg-transparent outline-none px-2.5 py-0.5 tracking-tight text-left transition ${
                 s.isLocked ? "cursor-pointer" : isEditing ? "cursor-text select-text" : "cursor-grab"
               }`}
             />
@@ -1419,16 +1173,16 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             )}
           </div>
         ) : field === "title" ? (
-          <div className="relative inline-grid items-center justify-center min-w-[70px] max-w-full">
+          <div className="relative inline-grid items-center justify-start min-w-[70px] max-w-full">
             {/* 줄바꿈 및 글자 폭을 완벽하게 반영하는 고스트 엘리먼트 */}
             <span
               aria-hidden="true"
-              className="invisible col-start-1 row-start-1 px-2.5 py-1 whitespace-pre-wrap break-words select-none pointer-events-none leading-tight tracking-tight text-center"
+              className="invisible col-start-1 row-start-1 px-2.5 py-1 whitespace-pre-wrap break-words select-none pointer-events-none leading-tight tracking-tight text-left"
               style={{
                 fontSize: `${s.fontSize}px`,
                 fontWeight: s.isBold ? "bold" : "normal",
                 fontStyle: s.isItalic ? "italic" : "normal",
-                textAlign: s.align,
+                textAlign: "left",
                 fontFamily: "inherit"
               }}
             >
@@ -1452,9 +1206,9 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                 fontWeight: s.isBold ? "bold" : "normal",
                 fontStyle: s.isItalic ? "italic" : "normal",
                 textDecoration: `${s.isUnderline ? "underline " : ""}${s.isStrike ? "line-through" : ""}`.trim() || "none",
-                textAlign: s.align
+                textAlign: "left"
               }}
-              className={`col-start-1 row-start-1 w-full h-full bg-transparent outline-none resize-none px-2.5 py-1 leading-tight tracking-tight text-center transition ${
+              className={`col-start-1 row-start-1 w-full h-full bg-transparent outline-none resize-none px-2.5 py-1 leading-tight tracking-tight text-left transition ${
                 s.isLocked ? "cursor-pointer" : isEditing ? "cursor-text select-text" : "cursor-grab"
               }`}
             />
@@ -1474,15 +1228,15 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             )}
           </div>
         ) : (
-          <div className="relative inline-grid items-center justify-center min-w-[70px] max-w-full">
+          <div className="relative inline-grid items-center justify-start min-w-[70px] max-w-full">
             <span
               aria-hidden="true"
-              className="invisible col-start-1 row-start-1 px-2.5 py-1 whitespace-pre-wrap break-words select-none pointer-events-none leading-relaxed tracking-tight text-center"
+              className="invisible col-start-1 row-start-1 px-2.5 py-1 whitespace-pre-wrap break-words select-none pointer-events-none leading-relaxed tracking-tight text-left"
               style={{
                 fontSize: `${s.fontSize}px`,
                 fontWeight: s.isBold ? "bold" : "normal",
                 fontStyle: s.isItalic ? "italic" : "normal",
-                textAlign: s.align,
+                textAlign: "left",
                 fontFamily: "inherit"
               }}
             >
@@ -1506,9 +1260,9 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                 fontWeight: s.isBold ? "bold" : "normal",
                 fontStyle: s.isItalic ? "italic" : "normal",
                 textDecoration: `${s.isUnderline ? "underline " : ""}${s.isStrike ? "line-through" : ""}`.trim() || "none",
-                textAlign: s.align
+                textAlign: "left"
               }}
-              className={`col-start-1 row-start-1 w-full h-full bg-transparent outline-none resize-none px-2.5 py-1 leading-relaxed tracking-tight text-center transition ${
+              className={`col-start-1 row-start-1 w-full h-full bg-transparent outline-none resize-none px-2.5 py-1 leading-relaxed tracking-tight text-left transition ${
                 s.isLocked ? "cursor-pointer" : isEditing ? "cursor-text select-text" : "cursor-grab"
               }`}
             />
@@ -1705,49 +1459,42 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
 
             {/* (1) 카드뉴스 생성 시작하기 */}
             <div className="space-y-1">
-              <button
-                type="button"
+              <div
                 onClick={() => {
                   setActivePlatform("cardnews");
                   if (!selectedPlatforms.includes("cardnews")) {
                     setSelectedPlatforms((prev) => [...prev, "cardnews"]);
                   }
                 }}
-                className={`w-full px-3 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition cursor-pointer select-none text-left ${
+                className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-between transition cursor-pointer select-none ${
                   activePlatform === "cardnews"
                     ? "bg-white border-[#8ECAE6] text-[#292929] shadow-2xs ring-1 ring-[#8ECAE6]/50"
-                    : "bg-white/60 border-stone-200/70 text-stone-600 hover:bg-white"
+                    : "bg-white/70 border-stone-200/80 text-stone-700 hover:bg-white"
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePlatform("cardnews");
-                    }}
-                    className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all ${
-                      selectedPlatforms.includes("cardnews")
-                        ? "bg-[#8ECAE6] border-[#8ECAE6] text-[#1E293B]"
-                        : "bg-white border-stone-300"
-                    }`}
-                    title="배포 대상 포함 여부"
-                  >
-                    {selectedPlatforms.includes("cardnews") && <Check className="w-3 h-3 stroke-[3]" />}
-                  </div>
-                  <span className={activePlatform === "cardnews" ? "text-[#292929] font-black" : "text-[#292929]"}>
-                    카드뉴스 생성 시작하기
-                  </span>
-                </div>
-                {activePlatform === "cardnews" ? (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8ECAE6]/25 text-[#1E293B] font-black">
-                    편집 화면
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-stone-400 font-normal">
-                    4:5 규격
-                  </span>
-                )}
-              </button>
+                <span className={activePlatform === "cardnews" ? "text-[#292929] font-black" : "text-[#292929] font-bold"}>
+                  카드뉴스 생성 시작하기
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePlatform("cardnews");
+                    if (!selectedPlatforms.includes("cardnews")) {
+                      setSelectedPlatforms((prev) => [...prev, "cardnews"]);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 ${
+                    activePlatform === "cardnews"
+                      ? "bg-[#8ECAE6] text-[#1E293B] shadow-2xs"
+                      : "bg-stone-900 hover:bg-black text-white shadow-2xs"
+                  }`}
+                  title="카드뉴스 제작 화면으로 이동"
+                >
+                  <span>{activePlatform === "cardnews" ? "편집 중" : "제작하기"}</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
             </div>
 
             {/* (2) 구분선 및 아래 배포 버튼 (인스타그램 & 스레드) */}
@@ -1884,7 +1631,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               <div className="space-y-1">
                 <h3 className="text-xs font-black text-[#292929]">카드뉴스 편집 안내</h3>
                 <p className="text-[11px] text-[#666666] leading-relaxed">
-                  수정할 텍스트를 누르면 플로팅 텍스트바가 열립니다. 서식 변경 및 <strong>고정(🔒)</strong>이 가능합니다.
+                  카드뉴스 내 텍스트를 직접 클릭하여 내용을 즉시 수정할 수 있으며, 규격에 맞춰 중앙왼쪽 정렬로 고정되어 깔끔하게 유지됩니다.
                 </p>
               </div>
             </>
@@ -1957,15 +1704,12 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
           <div className="flex items-center justify-between pb-3 border-b border-stone-200/60 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="text-xs md:text-sm font-black text-[#292929]">
-                {activeCardIndex + 1}번 카드 편집
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-medium">
-                수정 중: {activeField === "tag" ? "태그" : activeField === "title" ? "제목" : "본문"}
+                {activeCardIndex + 1}번 카드 수정 중
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* ⭐ 카드뉴스 편집기능 오른쪽 상단 '자유 배치 편집' 버튼 */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* ⭐ 카드뉴스 편집기능 '자유 배치 편집' 버튼 */}
               <button
                 type="button"
                 onClick={() => {
@@ -1990,6 +1734,46 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-stone-500 bg-stone-100 px-2.5 py-1 rounded-xl border border-stone-200/70">
                 <span>4:5</span>
                 <span>1080 × 1350</span>
+              </div>
+
+              {/* 오른쪽 상단: Instagram & Threads 영문 표기 및 배포하기 이동 버튼 */}
+              <div className="flex items-center gap-1 bg-stone-100/90 p-1 rounded-xl border border-stone-200/80 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivePlatform("instagram");
+                    showToast("📱 Instagram 편집 화면으로 이동했습니다.");
+                  }}
+                  className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-stone-700 hover:text-stone-950 hover:bg-white transition cursor-pointer"
+                  title="Instagram 편집 화면으로 이동"
+                >
+                  Instagram
+                </button>
+                <span className="text-stone-300 text-[10px]">·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActivePlatform("threads");
+                    showToast("🧵 Threads 편집 화면으로 이동했습니다.");
+                  }}
+                  className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-stone-700 hover:text-stone-950 hover:bg-white transition cursor-pointer"
+                  title="Threads 편집 화면으로 이동"
+                >
+                  Threads
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetPlatform = selectedPlatforms.includes("threads") && !selectedPlatforms.includes("instagram") ? "threads" : "instagram";
+                    setActivePlatform(targetPlatform);
+                    showToast("🚀 배포를 위한 편집 화면으로 이동했습니다.");
+                  }}
+                  className="px-2.5 py-0.5 rounded-lg bg-stone-900 hover:bg-black text-white text-[11px] font-black transition flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95 ml-0.5"
+                  title="스레드 및 인스타그램 편집화면으로 이동"
+                >
+                  <Send className="w-2.5 h-2.5 text-[#8ECAE6]" />
+                  <span>배포하기</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2238,8 +2022,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
         {/* ──────── [플랫폼 배포 화면 메인 박스 (activePlatform !== "cardnews")] ──────── */}
         {activePlatform !== "cardnews" && (
           <>
-            {/* ──────── [중앙 메인 박스 (lg:col-span-5)]: 플랫폼 전환 탭 + 목업 인라인 편집 ──────── */}
-            <div className="lg:col-span-5 space-y-4">
+            {/* ──────── [중앙 메인 박스 (lg:col-span-5 xl:col-span-6)]: 플랫폼 전환 탭 + 목업 인라인 편집 ──────── */}
+            <div className="lg:col-span-5 xl:col-span-6 space-y-4">
               {/* 플랫폼 전환 탭 바 */}
               <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-2xl border border-stone-200/80 w-fit shadow-xs">
                 <button
@@ -2279,7 +2063,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
 
               {/* ──────── [인스타그램 플랫폼 화면 및 인라인 편집] ──────── */}
               {activePlatform === "instagram" && (
-                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 overflow-hidden text-xs max-w-md mx-auto transition-all">
+                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 overflow-hidden text-xs w-full max-w-xl xl:max-w-2xl mx-auto transition-all">
                   {/* 상단 인스타그램 헤더 */}
                   <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-stone-100">
                     <div className="flex items-center gap-2.5">
@@ -2487,7 +2271,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
 
               {/* ──────── [스레드(Threads) 플랫폼 화면 및 인라인 편집] ──────── */}
               {activePlatform === "threads" && (
-                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 p-4 md:p-5 text-xs max-w-md mx-auto space-y-4 transition-all">
+                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 p-5 md:p-6 text-xs w-full max-w-xl xl:max-w-2xl mx-auto space-y-4 transition-all">
                   {/* 타래 1번 포스트 */}
                   <div className="flex items-start gap-3">
                     {/* 좌측 아바타 + 타래 연결선 */}
@@ -2631,8 +2415,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               />
             </div>
 
-            {/* ──────── [우측 사이드 패널 (lg:col-span-4)]: 연계 원고 검수 + 원고 구성 ──────── */}
-            <div className="lg:col-span-4 space-y-4">
+            {/* ──────── [우측 사이드 패널 (lg:col-span-4 xl:col-span-3)]: 연계 원고 검수 + 원고 구성 ──────── */}
+            <div className="lg:col-span-4 xl:col-span-3 space-y-4">
               {/* 1. 상단: 연계 원고 검수 박스 (우측 사이드로 이동) */}
               <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
