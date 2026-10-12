@@ -14,7 +14,9 @@ import {
   CheckCircle2,
   SlidersHorizontal,
   Compass,
-  ArrowRight
+  ArrowRight,
+  Edit3,
+  Bookmark
 } from "lucide-react";
 
 // 언스플래시 프리셋 고화질 보도사진 데이터
@@ -153,6 +155,47 @@ export default function PhotoSideDrawer({
   const [uploadCaption, setUploadCaption] = useState("");
   const [uploadSource, setUploadSource] = useState("동아일보 DB");
   const [uploadRatio, setUploadRatio] = useState("16:9 (대표)");
+
+  // 동아일보 DB 정렬 상태: 'latest' (최신순) | 'oldest' (오래된순) | 'stroll' (스트롤)
+  const [dongaSortOrder, setDongaSortOrder] = useState("latest");
+
+  const getSortedDongaPhotos = () => {
+    const list = [...DONGA_DB_PHOTOS];
+    if (dongaSortOrder === "latest") {
+      return list.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    }
+    if (dongaSortOrder === "oldest") {
+      return list.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    }
+    return list;
+  };
+
+  // 화면 알림 토스트 상태 및 핸들러
+  const [toastMessage, setToastMessage] = useState(null);
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 2000);
+  };
+
+  // 사진 보관하기 핸들러
+  const handleArchivePhoto = (photo) => {
+    if (setPhotos) {
+      if (!photos.some((p) => p.url === photo.url)) {
+        setPhotos((prev) => [photo, ...prev]);
+      }
+    }
+    showToast("보관되었습니다");
+  };
+
+  // 사진 보관함에서 삭제하기 핸들러
+  const handleDeletePhoto = (photo) => {
+    if (setPhotos) {
+      setPhotos((prev) => prev.filter((p) => (photo.id ? p.id !== photo.id : p.url !== photo.url)));
+    }
+    showToast("삭제되었습니다");
+  };
 
   // 검색 처리
   const handleSearch = (e) => {
@@ -447,7 +490,7 @@ export default function PhotoSideDrawer({
                               className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="기사에 바로 첨부하기"
                             >
-                              <span className="text-xs leading-none select-none">➕</span>
+                              <Plus className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                               <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                                 기사에 바로 첨부하기
                               </span>
@@ -462,9 +505,24 @@ export default function PhotoSideDrawer({
                               className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="편집하기"
                             >
-                              <span className="text-xs leading-none select-none">✎</span>
+                              <Edit3 className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                               <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                                 편집하기
+                              </span>
+                            </button>
+                            {/* 보관하기 이모지 버튼 */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchivePhoto(photo);
+                              }}
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                              title="보관하기"
+                            >
+                              <Bookmark className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[80px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                보관하기
                               </span>
                             </button>
                           </div>
@@ -497,14 +555,50 @@ export default function PhotoSideDrawer({
             {subTab === "donga_db" && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-[11px] text-slate-600 px-0.5">
-                  <span className="font-bold">동아일보 보도사진 아카이브</span>
-                  <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-200/60">
-                    공식 언론 DB
-                  </span>
+                  <span className="font-bold text-slate-800">동아일보 보도사진 아카이브</span>
+
+                  {/* 박스 형태가 아닌 인라인 텍스트 선택 버튼 (최신순 · 오래된순 · 스트롤) */}
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setDongaSortOrder("latest")}
+                      className={`cursor-pointer transition-colors ${
+                        dongaSortOrder === "latest"
+                          ? "font-extrabold text-slate-900"
+                          : "text-slate-400 hover:text-slate-600 font-medium"
+                      }`}
+                    >
+                      최신순
+                    </button>
+                    <span className="text-slate-300 text-[10px]">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setDongaSortOrder("oldest")}
+                      className={`cursor-pointer transition-colors ${
+                        dongaSortOrder === "oldest"
+                          ? "font-extrabold text-slate-900"
+                          : "text-slate-400 hover:text-slate-600 font-medium"
+                      }`}
+                    >
+                      오래된순
+                    </button>
+                    <span className="text-slate-300 text-[10px]">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setDongaSortOrder("stroll")}
+                      className={`cursor-pointer transition-colors ${
+                        dongaSortOrder === "stroll"
+                          ? "font-extrabold text-slate-900"
+                          : "text-slate-400 hover:text-slate-600 font-medium"
+                      }`}
+                    >
+                      스트롤
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
-                  {DONGA_DB_PHOTOS.map((photo) => {
+                  {getSortedDongaPhotos().map((photo) => {
                     const isSelected = selectedPhoto?.id === photo.id;
                     return (
                       <div
@@ -538,7 +632,7 @@ export default function PhotoSideDrawer({
                               className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="기사에 바로 첨부하기"
                             >
-                              <span className="text-xs leading-none select-none">➕</span>
+                              <Plus className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                               <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                                 기사에 바로 첨부하기
                               </span>
@@ -553,9 +647,24 @@ export default function PhotoSideDrawer({
                               className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="편집하기"
                             >
-                              <span className="text-xs leading-none select-none">✎</span>
+                              <Edit3 className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                               <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                                 편집하기
+                              </span>
+                            </button>
+                            {/* 보관하기 이모지 버튼 */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchivePhoto(photo);
+                              }}
+                              className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                              title="보관하기"
+                            >
+                              <Bookmark className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
+                              <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[80px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                                보관하기
                               </span>
                             </button>
                           </div>
@@ -642,7 +751,7 @@ export default function PhotoSideDrawer({
                           className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                           title="기사에 바로 첨부하기"
                         >
-                          <span className="text-xs leading-none select-none">➕</span>
+                          <Plus className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                           <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                             기사에 바로 첨부하기
                           </span>
@@ -664,9 +773,32 @@ export default function PhotoSideDrawer({
                           className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                           title="편집하기"
                         >
-                          <span className="text-xs leading-none select-none">✎</span>
+                          <Edit3 className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                           <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                             편집하기
+                          </span>
+                        </button>
+                        {/* 보관하기 이모지 버튼 */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const p = selectedPhoto || {
+                              id: `pc-${Date.now()}`,
+                              url: uploadPreview,
+                              caption: uploadCaption || "업로드 사진",
+                              source: uploadSource,
+                              provider: "김동아 기자",
+                              ratio: uploadRatio
+                            };
+                            handleArchivePhoto(p);
+                          }}
+                          className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
+                          title="보관하기"
+                        >
+                          <Bookmark className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
+                          <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[80px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
+                            보관하기
                           </span>
                         </button>
                       </div>
@@ -745,7 +877,7 @@ export default function PhotoSideDrawer({
                               className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="기사에 바로 첨부하기"
                             >
-                              <span className="text-xs leading-none select-none">➕</span>
+                              <Plus className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                               <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[120px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                                 기사에 바로 첨부하기
                               </span>
@@ -760,10 +892,22 @@ export default function PhotoSideDrawer({
                               className="group/btn h-7 min-w-[28px] px-1.5 rounded-full bg-white/90 hover:bg-white text-slate-800 backdrop-blur-md shadow-xs border border-white/70 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95 overflow-hidden"
                               title="편집하기"
                             >
-                              <span className="text-xs leading-none select-none">✎</span>
+                              <Edit3 className="w-3.5 h-3.5 text-slate-800 stroke-[2.2] select-none" />
                               <span className="text-[11px] font-bold text-slate-800 whitespace-nowrap opacity-0 max-w-0 group-hover/btn:max-w-[70px] group-hover/btn:opacity-100 group-hover/btn:pl-1 group-hover/btn:pr-1 transition-all duration-200 overflow-hidden select-none">
                                 편집하기
                               </span>
+                            </button>
+                            {/* 보관함 내에서는 보관하기 대신 삭제하기 버튼 (이모지로만 표현) */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeletePhoto(photo);
+                              }}
+                              className="h-7 w-7 rounded-full bg-white/90 hover:bg-rose-50 text-slate-800 hover:text-rose-600 backdrop-blur-md shadow-xs border border-slate-200 hover:border-rose-200 transition-all duration-200 flex items-center justify-center cursor-pointer active:scale-95"
+                              title="삭제하기"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-slate-800 hover:text-rose-600 stroke-[2.2] select-none transition-colors" />
                             </button>
                           </div>
 
@@ -791,6 +935,14 @@ export default function PhotoSideDrawer({
         )}
 
       </div>
+
+      {/* 화면 중앙 하단 알림 문구 (보관되었습니다 / 삭제되었습니다) */}
+      {toastMessage && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xl text-stone-950 text-xs font-black px-4 py-2 rounded-full shadow-[0_12px_36px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,1)] border border-white ring-1 ring-stone-900/15 z-50 animate-smooth-pop flex items-center gap-2 pointer-events-none">
+          <span className="w-1.5 h-1.5 rounded-full bg-stone-900 flex-shrink-0 shadow-[0_0_6px_rgba(0,0,0,0.3)]" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </aside>
   );
 }

@@ -42,89 +42,21 @@ function formatMinSecKorean(seconds) {
   return `${m}분 ${s}초`;
 }
 
-// 디자인 레퍼런스(Skiff Mail 스타일의 통합 2-Column 인터페이스) 초기 데이터
-const DEFAULT_DEMO_DATA = {
-  fileName: "2026_AI반도체_심층인터뷰_현장녹취.m4a",
-  duration: 3520, // 58분 40초
-  dialogues: [
-    {
-      id: "diag_01",
-      speaker: "reporter",
-      speakerName: "김동아 기자",
-      role: "질문자",
-      timestamp: 0,
-      avatarBg: "bg-blue-500",
-      avatarEmoji: "🎙️",
-      text: "대표님, 바쁘신 일정 중에도 시간 내주셔서 감사합니다. 이번에 개발 완료된 차세대 온디바이스 NPU 및 PIM 반도체 성과 발표에 대해 업계의 관심이 매우 뜨겁습니다. 먼저 이번 프로젝트를 시작하시게 된 계기와 배경부터 설명 부탁드립니다."
-    },
-    {
-      id: "diag_02",
-      speaker: "interviewee",
-      speakerName: "홍길동 대표 (OO반도체)",
-      role: "답변자",
-      timestamp: 42,
-      avatarBg: "bg-amber-500",
-      avatarEmoji: "💼",
-      text: "찾아와 주셔서 감사합니다. 아시다시피 최근 생성형 AI가 스마트폰부터 자율주행, 로봇까지 광범위하게 확산되면서 기존 GPU 기반 클라우드 연산 방식의 한계가 명확해졌습니다. 엄청난 전력 소모와 데이터센터 인프라 비용, 그리고 실시간 응답 지연 문제가 대표적이죠. 저희는 디바이스 자체에서 고성능 LLM을 초저전력으로 구동할 수 있는 칩셋이 필수적이라 판단하고 약 3년 전부터 독자 아키텍처 개발에 매진해 왔습니다."
-    },
-    {
-      id: "diag_03",
-      speaker: "reporter",
-      speakerName: "김동아 기자",
-      role: "질문자",
-      timestamp: 165,
-      avatarBg: "bg-blue-500",
-      avatarEmoji: "🎙️",
-      text: "공개된 자료에 따르면 기존 상용 칩 대비 전력 효율이 70% 이상 개선되었다고 들었습니다. 하드웨어 설계 관점에서 이를 어떻게 구현할 수 있었는지 기술적 핵심을 짚어주실 수 있나요?"
-    },
-    {
-      id: "diag_04",
-      speaker: "interviewee",
-      speakerName: "홍길동 대표 (OO반도체)",
-      role: "답변자",
-      timestamp: 215,
-      avatarBg: "bg-amber-500",
-      avatarEmoji: "💼",
-      text: "핵심은 크게 두 가지입니다. 첫째는 'PIM(Processing-In-Memory)' 구조를 채택하여 메모리와 연산 유닛 간의 데이터 병목(메모리 월 현상)을 원천 차단했습니다. 둘째는 정밀도를 잃지 않으면서도 연산량을 획기적으로 줄이는 동적 가중치 프루닝(Pruning) 및 양자화 전용 가속 회로를 내장한 것입니다. 이를 통해 불필요한 데이터 전송 전력을 완전히 없앴습니다."
-    },
-    {
-      id: "diag_05",
-      speaker: "reporter",
-      speakerName: "김동아 기자",
-      role: "질문자",
-      timestamp: 410,
-      avatarBg: "bg-blue-500",
-      avatarEmoji: "🎙️",
-      text: "현재 글로벌 빅테크 기업들도 자체 AI 가속기를 경쟁적으로 쏟아내고 있습니다. 국내 스타트업 및 연구진으로서 수율과 양산 가격 경쟁력은 어떻게 확보하고 계신가요?"
-    },
-    {
-      id: "diag_06",
-      speaker: "interviewee",
-      speakerName: "홍길동 대표 (OO반도체)",
-      role: "답변자",
-      timestamp: 472,
-      avatarBg: "bg-amber-500",
-      avatarEmoji: "💼",
-      text: "좋은 질문입니다. 저희는 최신 극미세 공정 대신 4나노 및 7나노 레거시/성숙 공정에서도 최고 효율을 낼 수 있는 회로 최적화에 집중했습니다. 그 결과 웨이퍼당 칩 생산 단가를 기존 글로벌 경쟁사 대비 40% 이상 낮출 수 있었고, 국내 파운드리 파트너십을 통해 초기 양산 수율을 이미 85% 이상 안정적으로 확보했습니다."
-    }
-  ]
-};
-
 export default function InterviewStudio({ onReturnToArticle }) {
   // 1. 녹음 파일 및 인터뷰 상태
   const [audioUrl, setAudioUrl] = useState(null);
-  const [fileName, setFileName] = useState(DEFAULT_DEMO_DATA.fileName);
-  const [dialogues, setDialogues] = useState(DEFAULT_DEMO_DATA.dialogues);
-  const [sttStatus, setSttStatus] = useState("전사 완료 100%");
+  const [fileName, setFileName] = useState("");
+  const [dialogues, setDialogues] = useState([]);
+  const [sttStatus, setSttStatus] = useState("대기 중");
 
   // 2. 검색 및 선택 상태
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [selectedDialogueId, setSelectedDialogueId] = useState(DEFAULT_DEMO_DATA.dialogues[0].id);
+  const [selectedDialogueId, setSelectedDialogueId] = useState(null);
 
   // 3. 오디오 플레이어 상태
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(DEFAULT_DEMO_DATA.duration);
+  const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
 
@@ -175,7 +107,7 @@ export default function InterviewStudio({ onReturnToArticle }) {
   const handleAudioTimeUpdate = () => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime);
-      setDuration(audioRef.current.duration || DEFAULT_DEMO_DATA.duration);
+      setDuration(audioRef.current.duration || 0);
     }
   };
 
@@ -235,7 +167,7 @@ export default function InterviewStudio({ onReturnToArticle }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${fileName.replace(/\.[^/.]+$/, "")}_녹취록.txt`;
+    link.download = `${(fileName || "인터뷰").replace(/\.[^/.]+$/, "")}_녹취록.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -338,11 +270,6 @@ export default function InterviewStudio({ onReturnToArticle }) {
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-950 tracking-tight">
             인터뷰·녹취 스튜디오
           </h1>
-
-          {/* 서브 설명 문구 */}
-          <p className="text-xs md:text-sm text-slate-400 font-normal leading-relaxed max-w-2xl">
-            실시간 AI 화자 분리와 발언 타임라인 분석을 통해 인터뷰 녹취록을 안전하고 체계적으로 관리합니다.
-          </p>
         </div>
 
         {/* 우측 상단: 기사 작성기로 내보내기 액션 (우측 상단 ↗ 아이콘 버튼) */}
@@ -419,7 +346,9 @@ export default function InterviewStudio({ onReturnToArticle }) {
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 font-bold text-slate-800 truncate max-w-[65%]">
               <FileAudio className="w-4 h-4 text-slate-500 shrink-0" />
-              <span className="truncate tracking-tight" title={fileName}>{fileName}</span>
+              <span className="truncate tracking-tight" title={fileName || "선택된 파일 없음"}>
+                {fileName || "선택된 파일 없음"}
+              </span>
             </div>
             <div className="font-mono text-xs font-bold text-slate-500 shrink-0">
               <span className="text-slate-900 font-extrabold">{formatDuration(currentTime)}</span>
@@ -441,12 +370,12 @@ export default function InterviewStudio({ onReturnToArticle }) {
                   className="absolute -top-11 -translate-x-1/2 pointer-events-none z-30 transition-all duration-75 flex flex-col items-center animate-in fade-in zoom-in-95 duration-100"
                   style={{ left: `${Math.min(92, Math.max(8, hoverPercent))}%` }}
                 >
-                  <div className="bg-slate-900/95 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xl border border-slate-700/80 whitespace-nowrap flex items-center gap-1.5 backdrop-blur-xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                  <div className="bg-white/95 backdrop-blur-md text-slate-900 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xl border border-slate-200/90 whitespace-nowrap flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-900 animate-ping" />
                     <span>미리보기: {formatMinSecKorean(hoverTime)}</span>
-                    <span className="text-slate-400 font-normal">| 현재 {formatMinSecKorean(currentTime)}</span>
+                    <span className="text-slate-500 font-normal">| 현재 {formatMinSecKorean(currentTime)}</span>
                   </div>
-                  <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700/80" />
+                  <div className="w-2 h-2 bg-white/95 rotate-45 -mt-1 border-r border-b border-slate-200/90" />
                 </div>
               )}
 

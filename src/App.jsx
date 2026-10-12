@@ -7,6 +7,7 @@ import InterviewStudio from "./components/interview/InterviewStudio";
 import FormatConverter from "./components/FormatConverter";
 import ArchiveView from "./components/ArchiveView";
 import LoginScreen from "./components/LoginScreen";
+import SettingsView from "./components/SettingsView";
 
 import { initialArticles, mockFactCheckIssues } from "./data/mockData";
 
@@ -49,6 +50,15 @@ const getAmbientGradient = (activeTab, factCheckActive) => {
     return [
       "radial-gradient(ellipse 95% 50% at 50% -5%, rgba(190, 220, 255, 0.16) 0%, rgba(255, 255, 255, 0) 70%)",
       "radial-gradient(ellipse 85% 55% at 85% 85%, rgba(250, 225, 200, 0.20) 0%, rgba(255, 255, 255, 0) 72%)",
+      "#FAFAFA"
+    ].join(", ");
+  }
+
+  // 05 환경 설정 모드
+  if (activeTab === "settings") {
+    return [
+      "radial-gradient(ellipse 95% 50% at 50% -5%, rgba(190, 220, 255, 0.20) 0%, rgba(255, 255, 255, 0) 70%)",
+      "radial-gradient(ellipse 85% 50% at 50% 105%, rgba(220, 215, 235, 0.18) 0%, rgba(255, 255, 255, 0) 70%)",
       "#FAFAFA"
     ].join(", ");
   }
@@ -149,8 +159,8 @@ export default function App() {
         }}
       />
 
-      {/* 1. Top Header (독자 화면 미리보기 및 사진 편집 모드 시 숨김 처리) */}
-      {!isReaderPreview && !isPhotoEditing && (
+      {/* 1. Top Header (사진 편집 모드 시에만 숨김 처리) */}
+      {!isPhotoEditing && (
         <Header
           currentArticleTitle={article.title}
           status={article.status}
@@ -215,6 +225,10 @@ export default function App() {
             ) : activeTab === "archive" ? (
               <main className="flex-1 min-w-0 transition-all z-20 py-2">
                 <ArchiveView />
+              </main>
+            ) : activeTab === "settings" ? (
+              <main className="flex-1 min-w-0 transition-all z-20 py-6 px-4 md:px-8">
+                <SettingsView onReturnToArticle={() => setActiveTab("writer")} />
               </main>
             ) : (
               <main className="main-warm-container flex-1 py-7 px-5 md:px-10 min-w-0 transition-all z-20">

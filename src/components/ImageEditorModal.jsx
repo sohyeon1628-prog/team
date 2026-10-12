@@ -88,8 +88,8 @@ export default function ImageEditorModal({ isOpen, onClose, photo, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/45 backdrop-blur-md animate-smooth-in">
+      <div className="bg-white/96 backdrop-blur-2xl rounded-3xl border border-white ring-1 ring-stone-900/10 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,1)] w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-smooth-pop">
         
         {/* 상단 모달 헤더 */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 flex-shrink-0">

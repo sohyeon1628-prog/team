@@ -20,11 +20,13 @@ import {
   Sparkles,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Palette,
   Wand2,
   FileText,
   BookOpen,
-  ChevronRight,
+  Type,
   Copy,
   Printer,
   Move,
@@ -46,6 +48,38 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import { searchUnsplashPhotos } from "../services/unsplash";
+
+// 동아일보 DB 보도사진 아카이브 프리셋 데이터
+const DONGA_DB_PHOTOS = [
+  {
+    id: "db-1",
+    url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+    caption: "서울 종로구 광화문 동아미디어센터 사옥 전경",
+    source: "동아일보 DB",
+    date: "2026.10.05"
+  },
+  {
+    id: "db-2",
+    url: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80",
+    caption: "국회 과학기술정보방송통신위원회 종합 국정감사 회의장",
+    source: "동아일보 DB",
+    date: "2026.10.02"
+  },
+  {
+    id: "db-3",
+    url: "https://images.unsplash.com/photo-1573164713988-8665fc963095?auto=format&fit=crop&w=800&q=80",
+    caption: "한국과학기술원(KAIST) 반도체 융합 연구실 브리핑 현장",
+    source: "동아일보 DB",
+    date: "2026.09.28"
+  },
+  {
+    id: "db-4",
+    url: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80",
+    caption: "초거대 생성형 AI 기업 연합 기술 포럼 프레스룸",
+    source: "동아일보 DB",
+    date: "2026.09.25"
+  }
+];
 
 export default function FormatConverter({ currentArticle: _currentArticle }) {
   // 현재 작성 중인 기사 데이터 연동 및 동기화
@@ -112,8 +146,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
     ? activeArticle.content.split(/\n\n+/).filter(Boolean)[0]?.replace(/\[사진 삽입:.*?\]/g, "").trim()
     : "";
 
-  // 1. 배포 플랫폼 선택 상태 및 활성 편집 플랫폼 (기본값: instagram, 왼쪽 '카드뉴스' 클릭 시 카드뉴스 화면 활성화)
-  const [activePlatform, setActivePlatform] = useState("instagram");
+  // 1. 배포 플랫폼 선택 상태 및 활성 편집 플랫폼 (초기값: null, 사이드에서 카드뉴스 생성 시작하기 클릭 시 활성화)
+  const [activePlatform, setActivePlatform] = useState(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState(["instagram", "threads", "cardnews"]);
   const togglePlatform = (id) => {
     setSelectedPlatforms((prev) =>
@@ -136,6 +170,13 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
   const [instagramAspectRatio, setInstagramAspectRatio] = useState("4:5"); // "4:5" | "1:1"
   const platformFileInputRef = useRef(null);
 
+  // 인스타그램 로컬 앱 연결 노드형 타임라인 워크플로우 상태
+  const [instaConnectionStarted, setInstaConnectionStarted] = useState(false); // 연결 시작하기 토글
+  const [instaActiveStep, setInstaActiveStep] = useState(1); // 0: 계정 연결, 1: 로그인 상태 확인(기본 실행 중), 2: 원고·카드 준비, 3: 게시 준비 완료
+  const [instaAppWindowOpen, setInstaAppWindowOpen] = useState(true);
+  const [instaAccountConnected, setInstaAccountConnected] = useState(true);
+  const [instaLoginStatus, setInstaLoginStatus] = useState("checking"); // 'checking' | 'verified' | 'error'
+
   // 스레드(Threads) 배포 전용 상태
   const [threadsList, setThreadsList] = useState([
     { id: 1, content: "" },
@@ -144,6 +185,13 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
   const [isThreadsCopied, setIsThreadsCopied] = useState(false);
   const [isThreadsLiked, setIsThreadsLiked] = useState(false);
   const [threadsLikeCount, setThreadsLikeCount] = useState(342);
+
+  // 스레드(Threads) 로컬 앱 연결 노드형 타임라인 워크플로우 상태
+  const [threadsConnectionStarted, setThreadsConnectionStarted] = useState(false); // 연결 시작하기 토글
+  const [threadsActiveStep, setThreadsActiveStep] = useState(1); // 0: 계정 연결, 1: 로그인 상태 확인(기본 실행 중), 2: 타래·원고 준비, 3: 게시 준비 완료
+  const [threadsAppWindowOpen, setThreadsAppWindowOpen] = useState(true);
+  const [threadsAccountConnected, setThreadsAccountConnected] = useState(true);
+  const [threadsLoginStatus, setThreadsLoginStatus] = useState("checking"); // 'checking' | 'verified' | 'error'
 
   // ─── [뉴스 카드 편집실: 원고 검수 & 문단별 편집 & 연동 상태] ───
   const [draftSections, setDraftSections] = useState({
@@ -482,6 +530,10 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
   const [isUnsplashLoading, setIsUnsplashLoading] = useState(false);
   const [unsplashError, setUnsplashError] = useState("");
 
+  // 동아일보 DB 보도사진 모달 상태 및 인라인 이미지 패널 상태 ('unsplash' | 'dongaDb' | null)
+  const [showDongaDbModal, setShowDongaDbModal] = useState(false);
+  const [activeImagePanel, setActiveImagePanel] = useState(null);
+
   // 현재 활성 카드의 속성 업데이트
   const updateActiveCard = (field, value) => {
     setCards((prev) =>
@@ -784,6 +836,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
       title: "새 카드 제목",
       body: "내용을 입력하세요.",
       bgImage: null,
+      bgGradient: "linear-gradient(90deg, #18181b 0%, #27272a 50%, #18181b 100%)",
       fieldPositions: { tag: "top", title: "center", body: "bottom" },
       positions: { tag: { x: 50, y: 16 }, title: { x: 50, y: 48 }, body: { x: 50, y: 80 } },
       freePositions: { tag: { x: 50, y: 16 }, title: { x: 50, y: 48 }, body: { x: 50, y: 80 } },
@@ -1417,8 +1470,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
           2. 3단 메인 작업 영역
          ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* ──────── [좌측 패널 (lg:col-span-3)] ──────── */}
-        <div className="lg:col-span-3 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-4">
+        {/* ──────── [좌측 패널 (lg:col-span-3)]: 스크롤 시 화면을 따라오는 sticky 적용 ──────── */}
+        <div className="lg:col-span-3 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-5 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-4">
           
           {/* 1. 기사 제목과 부제목, 그 아래 기사 전문보기 버튼 */}
           <div className="pb-3.5 border-b border-stone-200/60 space-y-2">
@@ -1454,7 +1507,6 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
           <div className="space-y-3 pb-3.5 border-b border-stone-200/60">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-black text-[#292929]">플랫폼 선택 및 제작</h3>
-              <span className="text-[10px] text-[#8ECAE6] font-bold">클릭 시 화면 전환</span>
             </div>
 
             {/* (1) 카드뉴스 생성 시작하기 */}
@@ -1473,7 +1525,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                 }`}
               >
                 <span className={activePlatform === "cardnews" ? "text-[#292929] font-black" : "text-[#292929] font-bold"}>
-                  카드뉴스 생성 시작하기
+                  {activePlatform === "cardnews" ? "카드뉴스 제작 중" : "카드뉴스 생성 시작하기"}
                 </span>
                 <button
                   type="button"
@@ -1484,15 +1536,14 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                       setSelectedPlatforms((prev) => [...prev, "cardnews"]);
                     }
                   }}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 ${
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center justify-center cursor-pointer active:scale-95 ${
                     activePlatform === "cardnews"
                       ? "bg-[#8ECAE6] text-[#1E293B] shadow-2xs"
                       : "bg-stone-900 hover:bg-black text-white shadow-2xs"
                   }`}
                   title="카드뉴스 제작 화면으로 이동"
                 >
-                  <span>{activePlatform === "cardnews" ? "편집 중" : "제작하기"}</span>
-                  <ArrowRight className="w-3 h-3" />
+                  <span>{activePlatform === "cardnews" ? "제작 중" : "제작하기"}</span>
                 </button>
               </div>
             </div>
@@ -1636,61 +1687,559 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               </div>
             </>
           ) : activePlatform === "instagram" ? (
-            <>
-              {/* Instagram 배포 옵션 */}
-              <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
-                <h3 className="text-xs font-black text-[#292929]">Instagram 배포 옵션</h3>
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setActivePlatform("cardnews")}
-                    className="btn-pill-white w-full text-xs"
-                    title="카드뉴스 화면으로 전환"
-                  >
-                    <span>카드뉴스 연동하기</span>
-                    <span className="btn-pill-badge" title="카드뉴스">
-                      <Newspaper className="w-3.5 h-3.5 stroke-[2.2]" />
-                    </span>
-                  </button>
-                </div>
+            <div className="space-y-3.5">
+              {/* Instagram 로컬 앱 연결 상단 텍스트 안내 */}
+              <div className="space-y-1">
+                <h3 className="text-xs font-black text-stone-900 leading-tight">Instagram 로컬 앱 연결</h3>
+                <p className="text-[10px] text-stone-400 leading-snug">
+                  계정 연결부터 게시 준비까지 진행 상태를 확인하세요.
+                </p>
               </div>
 
-              {/* Instagram 배포 안내 */}
+              {/* 연결 시작하기 버튼 (선택 시 인스타그램 색상 활성화) */}
+              <button
+                type="button"
+                onClick={() => setInstaConnectionStarted((prev) => !prev)}
+                className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer active:scale-98 ${
+                  instaConnectionStarted
+                    ? "bg-gradient-to-r from-[#f09433] via-[#dc2743] to-[#bc1888] text-white shadow-xs"
+                    : "bg-white hover:bg-stone-50 text-stone-700 border border-stone-200/90 shadow-2xs"
+                }`}
+              >
+                <span>{instaConnectionStarted ? "Instagram 로컬 앱 연결됨" : "연결 시작하기"}</span>
+                <span
+                  className={`text-[10px] font-black px-2 py-0.5 rounded-full transition-all ${
+                    instaConnectionStarted
+                      ? "bg-white/20 text-white"
+                      : "bg-stone-100 text-stone-500"
+                  }`}
+                >
+                  {instaConnectionStarted ? "연결 중" : "시작"}
+                </span>
+              </button>
+
+              {/* 연결 시작하기 클릭 시 펼쳐지는 노드 영역 (외곽 박스 없이 노드 단독 표시) */}
+              {instaConnectionStarted && (
+                <div className="space-y-3 animate-smooth-in pt-1">
+                  {/* 4단계 세로형 곡선 타임라인 워크플로우 */}
+                  <div className="relative h-[272px] select-none">
+                    {/* SVG 베지어 곡선 연결선 레이어 */}
+                    {(() => {
+                      const xBase = 20;
+                      const xActive = 32;
+                      const stepH = 68;
+                      const totalH = stepH * 4;
+                      const yCenter = 34 + instaActiveStep * stepH;
+                      const yStart = Math.max(0, yCenter - 26);
+                      const yEnd = Math.min(totalH, yCenter + 26);
+
+                      const fullPathD = `
+                        M ${xBase} 0
+                        L ${xBase} ${yStart}
+                        C ${xBase} ${yCenter - 11}, ${xActive} ${yCenter - 11}, ${xActive} ${yCenter}
+                        C ${xActive} ${yCenter + 11}, ${xBase} ${yCenter + 11}, ${xBase} ${yEnd}
+                        L ${xBase} ${totalH}
+                      `;
+
+                      const activeCurveD = `
+                        M ${xBase} ${yStart}
+                        C ${xBase} ${yCenter - 11}, ${xActive} ${yCenter - 11}, ${xActive} ${yCenter}
+                        C ${xActive} ${yCenter + 11}, ${xBase} ${yCenter + 11}, ${xBase} ${yEnd}
+                      `;
+
+                      return (
+                        <svg
+                          className="absolute left-0 top-0 w-12 h-full pointer-events-none z-0"
+                          viewBox={`0 0 48 ${totalH}`}
+                        >
+                          <defs>
+                            <linearGradient id="instaPinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#FA7298" />
+                              <stop offset="50%" stopColor="#E1306C" />
+                              <stop offset="100%" stopColor="#C13584" />
+                            </linearGradient>
+                            <filter id="instaGlow" x="-50%" y="-50%" width="200%" height="200%">
+                              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#E1306C" floodOpacity="0.85" />
+                            </filter>
+                          </defs>
+                          <path
+                            d={fullPathD}
+                            fill="none"
+                            stroke="#E2E8F0"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            className="transition-all duration-300"
+                          />
+                          <path
+                            d={activeCurveD}
+                            fill="none"
+                            stroke="url(#instaPinkGrad)"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            className="transition-all duration-300"
+                          />
+                          <circle
+                            cx={xActive}
+                            cy={yCenter}
+                            r="5.5"
+                            fill="#E1306C"
+                            filter="url(#instaGlow)"
+                            className="transition-all duration-300 ease-out"
+                          />
+                          <circle
+                            cx={xActive}
+                            cy={yCenter}
+                            r="2.2"
+                            fill="#FFFFFF"
+                            className="transition-all duration-300 ease-out"
+                          />
+                        </svg>
+                      );
+                    })()}
+
+                    {/* 4개 단계 노드 */}
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                      {[
+                        {
+                          idx: 0,
+                          title: "01. Instagram 계정 연결",
+                          desc: "전용 창에서 계정을 연결합니다.",
+                          status: instaAccountConnected ? "completed" : "pending",
+                          icon: Check
+                        },
+                        {
+                          idx: 1,
+                          title: "02. 로그인 상태 확인",
+                          desc: "전용 Instagram 창의 로그인 상태를 확인합니다.",
+                          status:
+                            instaLoginStatus === "checking"
+                              ? "in_progress"
+                              : instaLoginStatus === "verified"
+                              ? "completed"
+                              : "error",
+                          icon: null
+                        },
+                        {
+                          idx: 2,
+                          title: "03. 원고·카드 준비",
+                          desc: "현재 원고와 카드의 작성 상태를 확인합니다.",
+                          status:
+                            cards.length > 0 && instagramCaption
+                              ? (instaActiveStep === 2 ? "in_progress" : "completed")
+                              : (instaActiveStep === 2 ? "in_progress" : "pending"),
+                          icon: FileText
+                        },
+                        {
+                          idx: 3,
+                          title: "04. 게시 준비 완료",
+                          desc: "게시 전 필수 조건을 확인합니다.",
+                          status:
+                            instaActiveStep === 3
+                              ? "in_progress"
+                              : (instaAccountConnected && instaLoginStatus === "verified" && cards.length > 0)
+                              ? "completed"
+                              : "pending",
+                          icon: Send
+                        }
+                      ].map((step) => {
+                        const isActive = instaActiveStep === step.idx;
+                        const isCompleted = step.status === "completed";
+                        const isInProgress = step.status === "in_progress" || isActive;
+                        const isError = step.status === "error";
+
+                        return (
+                          <div
+                            key={step.idx}
+                            onClick={() => setInstaActiveStep(step.idx)}
+                            className={`h-[68px] flex items-center justify-between px-1.5 transition-all duration-200 cursor-pointer rounded-2xl ${
+                              isActive
+                                ? "bg-[#FDF2F8]/70 border border-[#FCE7F3]/80"
+                                : "hover:bg-white/60"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                              <div className="w-10 flex items-center justify-center flex-shrink-0">
+                                {isActive ? (
+                                  <div className="w-6 h-6" />
+                                ) : isCompleted ? (
+                                  <div className="w-6 h-6 rounded-full bg-[#E6F4EA] text-[#137333] flex items-center justify-center shadow-2xs">
+                                    <Check className="w-3.5 h-3.5 stroke-[2.8]" />
+                                  </div>
+                                ) : isError ? (
+                                  <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shadow-2xs">
+                                    <AlertCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  </div>
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center shadow-2xs">
+                                    {step.icon && <step.icon className="w-3.5 h-3.5 stroke-[2]" />}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="min-w-0">
+                                <h4 className="text-[11px] font-black text-stone-800 truncate leading-tight">
+                                  {step.title}
+                                </h4>
+                                <p className="text-[9.5px] text-stone-400 truncate leading-tight mt-0.5">
+                                  {step.desc}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex-shrink-0 pl-1">
+                              {isInProgress ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FCE7F3] text-[#DB2777]">
+                                  진행 중
+                                </span>
+                              ) : isCompleted ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333]">
+                                  완료
+                                </span>
+                              ) : isError ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                  오류 안내
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-stone-100 text-stone-400">
+                                  대기 중
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 하단 전용 창 닫기 버튼 */}
+                  <div className="pt-2 border-t border-stone-200/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (instaAppWindowOpen) {
+                          setInstaAppWindowOpen(false);
+                          setInstaLoginStatus("verified");
+                          setInstaActiveStep(2);
+                          showToast("전용 창을 닫았습니다. 로그인 상태는 보존됩니다.");
+                        } else {
+                          setInstaAppWindowOpen(true);
+                          setInstaLoginStatus("checking");
+                          setInstaActiveStep(1);
+                          showToast("전용 Instagram 창을 열었습니다.");
+                        }
+                      }}
+                      className="w-full py-2 px-3 rounded-xl border border-stone-200/90 bg-white hover:bg-stone-50 text-stone-700 text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-2xs transition active:scale-98 cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-stone-500" />
+                      <span>
+                        {instaAppWindowOpen
+                          ? "전용 창 닫기 · 로그인 상태는 보존"
+                          : "전용 창 열기 · 계정 상태 재확인"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 기존 카드뉴스 연동하기 및 배포 가이드 유지 */}
+              <div className="space-y-2 pt-1 border-t border-stone-200/60">
+                <button
+                  type="button"
+                  onClick={() => setActivePlatform("cardnews")}
+                  className="btn-pill-white w-full text-xs"
+                  title="카드뉴스 화면으로 전환"
+                >
+                  <span>카드뉴스 연동하기</span>
+                  <span className="btn-pill-badge" title="카드뉴스">
+                    <Newspaper className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </span>
+                </button>
+              </div>
+
               <div className="space-y-1">
                 <h3 className="text-xs font-black text-[#292929]">배포 가이드</h3>
                 <p className="text-[11px] text-[#666666] leading-relaxed">
                   인스타그램 피드는 첫 125자가 더보기 전에 노출되므로, 서두에 핵심 헤드라인을 배치하는 것을 권장합니다.
                 </p>
               </div>
-            </>
+            </div>
           ) : (
-            <>
-              {/* Threads 배포 옵션 */}
-              <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
-                <h3 className="text-xs font-black text-[#292929]">Threads 배포 옵션</h3>
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => setActivePlatform("cardnews")}
-                    className="btn-pill-white w-full text-xs"
-                    title="카드뉴스 화면으로 전환"
-                  >
-                    <span>카드뉴스 연동하기</span>
-                    <span className="btn-pill-badge" title="카드뉴스">
-                      <Newspaper className="w-3.5 h-3.5 stroke-[2.2]" />
-                    </span>
-                  </button>
-                </div>
+            <div className="space-y-3.5">
+              {/* Threads 로컬 앱 연결 상단 텍스트 안내 */}
+              <div className="space-y-1">
+                <h3 className="text-xs font-black text-stone-900 leading-tight">Threads 로컬 앱 연결</h3>
+                <p className="text-[10px] text-stone-400 leading-snug">
+                  계정 연결부터 타래 게시 준비까지 진행 상태를 확인하세요.
+                </p>
               </div>
 
-              {/* Threads 배포 안내 */}
+              {/* 연결 시작하기 버튼 (선택 시 스레드 시그니처 딥블랙 활성화) */}
+              <button
+                type="button"
+                onClick={() => setThreadsConnectionStarted((prev) => !prev)}
+                className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer active:scale-98 ${
+                  threadsConnectionStarted
+                    ? "bg-[#101010] hover:bg-black text-white shadow-xs"
+                    : "bg-white hover:bg-stone-50 text-stone-700 border border-stone-200/90 shadow-2xs"
+                }`}
+              >
+                <span>{threadsConnectionStarted ? "Threads 로컬 앱 연결됨" : "연결 시작하기"}</span>
+                <span
+                  className={`text-[10px] font-black px-2 py-0.5 rounded-full transition-all ${
+                    threadsConnectionStarted
+                      ? "bg-white/20 text-white"
+                      : "bg-stone-100 text-stone-500"
+                  }`}
+                >
+                  {threadsConnectionStarted ? "연결 중" : "시작"}
+                </span>
+              </button>
+
+              {/* 연결 시작하기 클릭 시 펼쳐지는 노드 영역 (외곽 박스 없이 노드 단독 표시) */}
+              {threadsConnectionStarted && (
+                <div className="space-y-3 animate-smooth-in pt-1">
+                  {/* 4단계 세로형 곡선 타임라인 워크플로우 */}
+                  <div className="relative h-[272px] select-none">
+                    {/* SVG 베지어 곡선 연결선 레이어 */}
+                    {(() => {
+                      const xBase = 20;
+                      const xActive = 32;
+                      const stepH = 68;
+                      const totalH = stepH * 4;
+                      const yCenter = 34 + threadsActiveStep * stepH;
+                      const yStart = Math.max(0, yCenter - 26);
+                      const yEnd = Math.min(totalH, yCenter + 26);
+
+                      const fullPathD = `
+                        M ${xBase} 0
+                        L ${xBase} ${yStart}
+                        C ${xBase} ${yCenter - 11}, ${xActive} ${yCenter - 11}, ${xActive} ${yCenter}
+                        C ${xActive} ${yCenter + 11}, ${xBase} ${yCenter + 11}, ${xBase} ${yEnd}
+                        L ${xBase} ${totalH}
+                      `;
+
+                      const activeCurveD = `
+                        M ${xBase} ${yStart}
+                        C ${xBase} ${yCenter - 11}, ${xActive} ${yCenter - 11}, ${xActive} ${yCenter}
+                        C ${xActive} ${yCenter + 11}, ${xBase} ${yCenter + 11}, ${xBase} ${yEnd}
+                      `;
+
+                      return (
+                        <svg
+                          className="absolute left-0 top-0 w-12 h-full pointer-events-none z-0"
+                          viewBox={`0 0 48 ${totalH}`}
+                        >
+                          <defs>
+                            <linearGradient id="threadsBlackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#71717A" />
+                              <stop offset="50%" stopColor="#18181B" />
+                              <stop offset="100%" stopColor="#09090B" />
+                            </linearGradient>
+                            <filter id="threadsGlow" x="-50%" y="-50%" width="200%" height="200%">
+                              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#18181B" floodOpacity="0.4" />
+                            </filter>
+                          </defs>
+                          <path
+                            d={fullPathD}
+                            fill="none"
+                            stroke="#E2E8F0"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            className="transition-all duration-300"
+                          />
+                          <path
+                            d={activeCurveD}
+                            fill="none"
+                            stroke="url(#threadsBlackGrad)"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            className="transition-all duration-300"
+                          />
+                          <circle
+                            cx={xActive}
+                            cy={yCenter}
+                            r="5.5"
+                            fill="#18181B"
+                            filter="url(#threadsGlow)"
+                            className="transition-all duration-300 ease-out"
+                          />
+                          <circle
+                            cx={xActive}
+                            cy={yCenter}
+                            r="2.2"
+                            fill="#FFFFFF"
+                            className="transition-all duration-300 ease-out"
+                          />
+                        </svg>
+                      );
+                    })()}
+
+                    {/* 4개 단계 노드 */}
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                      {[
+                        {
+                          idx: 0,
+                          title: "01. Threads 계정 연결",
+                          desc: "전용 창에서 계정을 연결합니다.",
+                          status: threadsAccountConnected ? "completed" : "pending",
+                          icon: Check
+                        },
+                        {
+                          idx: 1,
+                          title: "02. 로그인 상태 확인",
+                          desc: "전용 Threads 창의 로그인 상태를 확인합니다.",
+                          status:
+                            threadsLoginStatus === "checking"
+                              ? "in_progress"
+                              : threadsLoginStatus === "verified"
+                              ? "completed"
+                              : "error",
+                          icon: null
+                        },
+                        {
+                          idx: 2,
+                          title: "03. 타래·원고 준비",
+                          desc: "현재 원고와 타래(스레드)의 작성 상태를 확인합니다.",
+                          status:
+                            threadsList[0]?.content
+                              ? (threadsActiveStep === 2 ? "in_progress" : "completed")
+                              : (threadsActiveStep === 2 ? "in_progress" : "pending"),
+                          icon: FileText
+                        },
+                        {
+                          idx: 3,
+                          title: "04. 게시 준비 완료",
+                          desc: "타래 게시 전 필수 조건을 확인합니다.",
+                          status:
+                            threadsActiveStep === 3
+                              ? "in_progress"
+                              : (threadsAccountConnected && threadsLoginStatus === "verified" && threadsList[0]?.content)
+                              ? "completed"
+                              : "pending",
+                          icon: Send
+                        }
+                      ].map((step) => {
+                        const isActive = threadsActiveStep === step.idx;
+                        const isCompleted = step.status === "completed";
+                        const isInProgress = step.status === "in_progress" || isActive;
+                        const isError = step.status === "error";
+
+                        return (
+                          <div
+                            key={step.idx}
+                            onClick={() => setThreadsActiveStep(step.idx)}
+                            className={`h-[68px] flex items-center justify-between px-1.5 transition-all duration-200 cursor-pointer rounded-2xl ${
+                              isActive
+                                ? "bg-stone-100/90 border border-stone-200/90"
+                                : "hover:bg-white/60"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-1">
+                              <div className="w-10 flex items-center justify-center flex-shrink-0">
+                                {isActive ? (
+                                  <div className="w-6 h-6" />
+                                ) : isCompleted ? (
+                                  <div className="w-6 h-6 rounded-full bg-[#E6F4EA] text-[#137333] flex items-center justify-center shadow-2xs">
+                                    <Check className="w-3.5 h-3.5 stroke-[2.8]" />
+                                  </div>
+                                ) : isError ? (
+                                  <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shadow-2xs">
+                                    <AlertCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  </div>
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center shadow-2xs">
+                                    {step.icon && <step.icon className="w-3.5 h-3.5 stroke-[2]" />}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="min-w-0">
+                                <h4 className="text-[11px] font-black text-stone-800 truncate leading-tight">
+                                  {step.title}
+                                </h4>
+                                <p className="text-[9.5px] text-stone-400 truncate leading-tight mt-0.5">
+                                  {step.desc}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex-shrink-0 pl-1">
+                              {isInProgress ? (
+                                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-stone-900 text-white">
+                                  진행 중
+                                </span>
+                              ) : isCompleted ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333]">
+                                  완료
+                                </span>
+                              ) : isError ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                  오류 안내
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-stone-100 text-stone-400">
+                                  대기 중
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 하단 전용 창 닫기 버튼 */}
+                  <div className="pt-2 border-t border-stone-200/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (threadsAppWindowOpen) {
+                          setThreadsAppWindowOpen(false);
+                          setThreadsLoginStatus("verified");
+                          setThreadsActiveStep(2);
+                          showToast("전용 창을 닫았습니다. 로그인 상태는 보존됩니다.");
+                        } else {
+                          setThreadsAppWindowOpen(true);
+                          setThreadsLoginStatus("checking");
+                          setThreadsActiveStep(1);
+                          showToast("전용 Threads 창을 열었습니다.");
+                        }
+                      }}
+                      className="w-full py-2 px-3 rounded-xl border border-stone-200/90 bg-white hover:bg-stone-50 text-stone-700 text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-2xs transition active:scale-98 cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-stone-500" />
+                      <span>
+                        {threadsAppWindowOpen
+                          ? "전용 창 닫기 · 로그인 상태는 보존"
+                          : "전용 창 열기 · 계정 상태 재확인"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 기존 카드뉴스 연동하기 및 Threads 배포 가이드 유지 */}
+              <div className="space-y-2 pt-1 border-t border-stone-200/60">
+                <button
+                  type="button"
+                  onClick={() => setActivePlatform("cardnews")}
+                  className="btn-pill-white w-full text-xs"
+                  title="카드뉴스 화면으로 전환"
+                >
+                  <span>카드뉴스 연동하기</span>
+                  <span className="btn-pill-badge" title="카드뉴스">
+                    <Newspaper className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </span>
+                </button>
+              </div>
+
               <div className="space-y-1">
                 <h3 className="text-xs font-black text-[#292929]">배포 가이드</h3>
                 <p className="text-[11px] text-[#666666] leading-relaxed">
                   스레드는 타래당 최대 500자까지 작성할 수 있으며, 1번 글에 흥미를 유발하는 질문이나 핵심 결론을 제시하세요.
                 </p>
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -1699,8 +2248,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
           <>
             {/* ──────── [중앙 패널 (lg:col-span-6)]: 카드 편집 캔버스 (스크롤 시 고정되어 따라오는 sticky 적용) ──────── */}
             <div className="lg:col-span-6 sticky top-4 self-start bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-5 md:p-6 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between space-y-4 relative z-10">
-          {/* 상단 바: N번 카드 편집 + 4:5 1080 x 1350 */}
-          {/* 상단 메타 바: 비율 & 상태 & 자유 배치 버튼 */}
+          {/* 상단 메타 바: N번 카드 수정 중 + 인스타 스레드 배포하기 버튼 */}
           <div className="flex items-center justify-between pb-3 border-b border-stone-200/60 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <span className="text-xs md:text-sm font-black text-[#292929]">
@@ -1709,33 +2257,6 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {/* ⭐ 카드뉴스 편집기능 '자유 배치 편집' 버튼 */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsFreeLayoutMode(!isFreeLayoutMode);
-                  showToast(
-                    !isFreeLayoutMode
-                      ? "✨ 자유 배치 모드가 활성화되었습니다. 위치 변경 없이 자유롭게 드래그하세요."
-                      : "📐 틀 맞춤 모드로 전환되었습니다. 상·중·하 스냅으로 정렬됩니다."
-                  );
-                }}
-                className={`px-3 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-                  isFreeLayoutMode
-                    ? "bg-[#8ECAE6] text-[#1E293B] shadow-sm ring-1 ring-[#8ECAE6]"
-                    : "bg-white text-stone-700 hover:bg-stone-50 border border-stone-200 hover:text-black"
-                }`}
-                title={isFreeLayoutMode ? "상·중·하 틀 맞춤 모드로 전환" : "원하는 위치로 자유롭게 드래그하여 배치 (인스타그램 스토리 스타일)"}
-              >
-                <Move className="w-3.5 h-3.5" />
-                <span>{isFreeLayoutMode ? "자유 배치 중" : "자유 배치 편집"}</span>
-              </button>
-
-              <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold text-stone-500 bg-stone-100 px-2.5 py-1 rounded-xl border border-stone-200/70">
-                <span>4:5</span>
-                <span>1080 × 1350</span>
-              </div>
-
               {/* 오른쪽 상단: Instagram & Threads 영문 표기 및 배포하기 이동 버튼 */}
               <div className="flex items-center gap-1 bg-stone-100/90 p-1 rounded-xl border border-stone-200/80 shadow-2xs">
                 <button
@@ -1789,7 +2310,9 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                 className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none"
                 style={{
                   backgroundColor: activeCard.bgImage ? "transparent" : "#18181B",
-                  backgroundImage: activeCard.bgImage ? `url(${activeCard.bgImage})` : "none",
+                  backgroundImage: activeCard.bgImage
+                    ? `url(${activeCard.bgImage})`
+                    : (activeCard.bgGradient || "linear-gradient(90deg, #18181B 0%, #27272A 50%, #18181B 100%)"),
                   backgroundSize: "cover",
                   backgroundPosition: "center"
                 }}
@@ -1897,123 +2420,426 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
             </div>
           </div>
 
-          {/* 카드 하단 바 */}
-          <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <span className="text-[11px] text-stone-600 font-medium">
-              수정됨 | 원문 재검수 필요 (검수 기능 연결 전)
-            </span>
-
-            <button
-              type="button"
-              onClick={handleDownloadCard}
-              className="btn-pill-dark text-xs gap-3"
-            >
-              <span>현재 카드 JPG 다운로드</span>
-              <span className="btn-pill-badge" title="다운로드">
-                <Download className="w-3.5 h-3.5 stroke-[2.2]" />
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* ──────── [우측 패널 (lg:col-span-3)]: 전체 카드 ──────── */}
-        <div className="lg:col-span-3 bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[520px]">
-          <div>
-            {/* 전체 카드 헤더 + 글래스모피즘 블루 (+) 버튼 */}
-            <div className="flex items-center justify-between pb-3 border-b border-stone-200/60 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-[#292929]">전체 카드</span>
-                <span className="text-[11px] font-mono font-bold px-2 py-0.5 bg-stone-100 text-stone-600 rounded-xl border border-stone-200/70">
-                  {cards.length}장
-                </span>
-              </div>
-
-              {/* 글래스모피즘 블루 플러스 버튼 (+) */}
-              <button
-                type="button"
-                onClick={handleAddCard}
-                className="btn-circle-lemon"
-                title="새 카드 추가"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-              </button>
-            </div>
-
-            {/* 카드 썸네일 수직 스택 */}
-            <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+          {/* 카드뉴스 하단: 가로 카드 썸네일 스트립 (오른쪽 정렬 + + 버튼 인라인) + 페이지 네비게이션 & 다운로드 액션 */}
+          <div className="pt-3 border-t border-stone-100 space-y-3">
+            {/* 가로 카드 썸네일 스트립: 오른쪽 배치(justify-end) 및 + 버튼을 그 옆에 배치 */}
+            <div className="flex items-center justify-end gap-2.5 overflow-x-auto py-1.5 px-0.5 no-scrollbar">
               {cards.map((c, idx) => {
                 const isCurrent = idx === activeCardIndex;
                 return (
                   <div
                     key={c.id || idx}
                     onClick={() => setActiveCardIndex(idx)}
-                    className={`p-2 rounded-xl border transition-all select-none cursor-pointer flex flex-col gap-1.5 relative group ${
+                    className={`relative group flex-shrink-0 w-24 aspect-[4/5] rounded-none border transition-all cursor-pointer select-none overflow-hidden bg-[#18181b] ${
                       isCurrent
-                        ? "bg-white/90 border-[#292929] ring-2 ring-[#292929]/20 shadow-xs"
-                        : "bg-white/60 border-stone-200/70 hover:border-stone-400 hover:bg-white"
+                        ? "border-2 border-white/80 ring-2 ring-stone-900/40 shadow-[0_16px_36px_rgba(0,0,0,0.45)] -translate-y-1 z-10"
+                        : "border border-stone-800 shadow-2xs hover:border-stone-600 hover:shadow-xs opacity-75 hover:opacity-100"
                     }`}
                   >
-                    {/* 카드 삭제 버튼 (호버 시 표시) */}
+                    {/* 실제 카드 내용 그대로 렌더링 (블랙 베이스 + 편집 화면 그대로의 디자인) */}
+                    <div className="relative z-10 flex flex-col justify-between h-full p-2.5 pointer-events-none">
+                      {/* 상단: 태그 & 카드 번호 */}
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="text-[7.5px] text-stone-400 font-bold truncate max-w-[55px] tracking-tight">
+                          {c.tag || "콘텐츠 제작"}
+                        </span>
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-none leading-none ${
+                          isCurrent
+                            ? "bg-white text-stone-950 font-black"
+                            : "bg-stone-800 text-stone-300 border border-stone-700"
+                        }`}>
+                          {idx + 1}
+                        </span>
+                      </div>
+
+                      {/* 중앙: 카드 제목 (편집 화면과 동일한 흰색 굵은 텍스트) */}
+                      <div className="my-auto py-1 text-center">
+                        <p className="text-[8.5px] font-black leading-tight line-clamp-2 text-white drop-shadow-xs">
+                          {c.title || "새 카드 제목"}
+                        </p>
+                      </div>
+
+                      {/* 하단: 본문 내용 (편집 화면과 동일한 라이트 그레이 텍스트) & 잠금 아이콘 */}
+                      <div className="flex items-end justify-between gap-1 pt-1 border-t border-white/10">
+                        <p className="text-[6.5px] text-stone-300 line-clamp-2 leading-tight">
+                          {c.body || "내용을 입력하세요."}
+                        </p>
+                        {Object.values(c.styles || {}).some((s) => s.isLocked) && (
+                          <Lock className="w-2.5 h-2.5 text-amber-400 flex-shrink-0 mb-0.5" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 카드 삭제 버튼 (2장 이상일 때 호버 시 표시) */}
                     {cards.length > 1 && (
                       <button
                         type="button"
                         onClick={(e) => handleDeleteCard(idx, e)}
-                        className="absolute top-2 right-2 z-10 w-6 h-6 rounded-lg bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-1 right-1 z-20 w-4.5 h-4.5 rounded-none bg-stone-900 hover:bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xs"
                         title="카드 삭제"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-2.5 h-2.5" />
                       </button>
                     )}
-
-                    {/* 미니 썸네일 */}
-                    <div
-                      className="w-full aspect-[4/5] rounded-xl p-3 text-white flex flex-col justify-end overflow-hidden relative"
-                      style={{
-                        backgroundColor: c.bgImage ? "transparent" : "#18181B",
-                        backgroundImage: c.bgImage ? `url(${c.bgImage})` : "none",
-                        backgroundSize: "cover",
-                        backgroundPosition: "center"
-                      }}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80 pointer-events-none" />
-                      <div className="relative z-10 space-y-0.5">
-                        <p className="text-[9px] text-stone-400 font-medium truncate">
-                          {c.tag || "콘텐츠 제작"}
-                        </p>
-                        <p className="text-[11px] font-black leading-snug line-clamp-2">
-                          {c.title || "제목 없음"}
-                        </p>
-                        <p className="text-[9px] text-stone-300 leading-tight line-clamp-2">
-                          {c.body || ""}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* 카드 라벨: N / 표지 or 본문 */}
-                    <div className="text-[11px] font-bold text-stone-600 px-1 pt-0.5 flex items-center justify-between">
-                      <span>{idx + 1} / {c.role || (idx === 0 ? "표지" : "본문")}</span>
-                      {Object.values(c.styles || {}).some((s) => s.isLocked) && (
-                        <Lock className="w-3 h-3 text-amber-500" title="고정된 텍스트 포함" />
-                      )}
-                    </div>
                   </div>
                 );
               })}
+
+              {/* 그 옆에 바로 배치되는 (+) 추가 버튼 - 누르면 가로 그라데이션 형태로 새 카드 추가 */}
+              <button
+                type="button"
+                onClick={handleAddCard}
+                className="flex-shrink-0 w-8 h-8 rounded-full bg-stone-900 hover:bg-black text-white flex items-center justify-center shadow-xs cursor-pointer active:scale-95 transition-all"
+                title="새 카드 추가"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+              </button>
+            </div>
+
+            {/* 메인 카드 하단 컨트롤 바: 페이지 이동 네비게이션 & 다운로드 버튼 */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+              <div className="inline-flex items-center gap-3 px-3.5 py-1.5 rounded-full bg-white border border-stone-200/90 shadow-2xs text-xs font-black text-stone-800">
+                <button
+                  type="button"
+                  onClick={() => setActiveCardIndex(Math.max(0, activeCardIndex - 1))}
+                  disabled={activeCardIndex === 0}
+                  className="text-stone-400 hover:text-stone-900 disabled:opacity-30 cursor-pointer transition"
+                  title="이전 카드"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="select-none tracking-tight">
+                  페이지 {activeCardIndex + 1}/{cards.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveCardIndex(Math.min(cards.length - 1, activeCardIndex + 1))}
+                  disabled={activeCardIndex === cards.length - 1}
+                  className="text-stone-400 hover:text-stone-900 disabled:opacity-30 cursor-pointer transition"
+                  title="다음 카드"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 다운로드 버튼 */}
+              <button
+                type="button"
+                onClick={handleDownloadCard}
+                className="btn-pill-dark text-xs gap-3"
+              >
+                <span>현재 카드 JPG 다운로드</span>
+                <span className="btn-pill-badge" title="다운로드">
+                  <Download className="w-3.5 h-3.5 stroke-[2.2]" />
+                </span>
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* 하단: 카드 추가 버튼 (White Pill 스타일) */}
-          <div className="pt-3 border-t border-stone-100 mt-2">
-            <button
-              type="button"
-              onClick={handleAddCard}
-              className="btn-pill-white w-full text-xs"
-            >
-              <span>카드 추가하기</span>
-              <span className="btn-pill-badge" title="카드 추가">
-                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              </span>
-            </button>
+        {/* ──────── [우측 패널 (lg:col-span-3)]: 스크롤 시 화면을 따라오는 sticky 적용 ──────── */}
+        <div className="lg:col-span-3 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar bg-white/75 backdrop-blur-md rounded-2xl border border-white/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[520px]">
+          <div className="space-y-4">
+            {/* 상단: 이미지 첨부 기능 */}
+            <div className="pb-3 border-b border-stone-200/70 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-stone-700" />
+                  <span className="text-xs font-black text-[#292929]">이미지 첨부</span>
+                </div>
+                <span className="text-[10px] text-stone-400 font-medium">카드 배경 적용</span>
+              </div>
+
+              {/* 이미지 소스 3대 버튼 */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = activeImagePanel === "unsplash" ? null : "unsplash";
+                    setActiveImagePanel(next);
+                    if (next === "unsplash" && unsplashResults.length === 0) {
+                      handleSearchUnsplash(unsplashQuery);
+                    }
+                  }}
+                  className={`px-2 py-2.5 rounded-xl border text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95 ${
+                    activeImagePanel === "unsplash"
+                      ? "bg-stone-900 text-white border-stone-900"
+                      : "bg-white hover:bg-stone-50 border-stone-200/90 text-stone-800"
+                  }`}
+                  title="언플래쉬에서 고화질 사진 찾기"
+                >
+                  <Search className={`w-3.5 h-3.5 ${activeImagePanel === "unsplash" ? "text-white" : "text-stone-600"}`} />
+                  <span className="truncate">언플래쉬</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveImagePanel(activeImagePanel === "dongaDb" ? null : "dongaDb");
+                  }}
+                  className={`px-2 py-2.5 rounded-xl border text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95 ${
+                    activeImagePanel === "dongaDb"
+                      ? "bg-stone-900 text-white border-stone-900"
+                      : "bg-white hover:bg-stone-50 border-stone-200/90 text-stone-800"
+                  }`}
+                  title="동아일보 보도사진 DB 아카이브"
+                >
+                  <BookOpen className={`w-3.5 h-3.5 ${activeImagePanel === "dongaDb" ? "text-white" : "text-stone-600"}`} />
+                  <span className="truncate">동아일보 DB</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-2 py-2.5 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 text-stone-800 text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                  title="내 PC에서 사진 불러오기"
+                >
+                  <FileUp className="w-3.5 h-3.5 text-stone-600" />
+                  <span className="truncate">내 PC</span>
+                </button>
+              </div>
+
+              {/* ⭐ 버튼 하단에 스크롤되어 나타나는 인라인 창: 언플래쉬 (곡률 없이 직사각형 형태) */}
+              {activeImagePanel === "unsplash" && (
+                <div className="p-3 bg-white border border-stone-200/90 shadow-2xs space-y-2.5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-stone-100">
+                    <span className="text-[11px] font-black text-stone-800">언플래쉬 사진 검색</span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveImagePanel(null)}
+                      className="text-stone-400 hover:text-stone-700 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* 검색창 */}
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={unsplashQuery}
+                      onChange={(e) => setUnsplashQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSearchUnsplash()}
+                      placeholder="검색어 입력 (예: 경제, 인공지능)"
+                      className="flex-1 px-2.5 py-1.5 border border-stone-200 text-[11px] rounded-none outline-none focus:border-stone-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSearchUnsplash()}
+                      className="px-3 py-1.5 bg-stone-900 text-white text-[11px] font-bold rounded-none hover:bg-black cursor-pointer"
+                    >
+                      검색
+                    </button>
+                  </div>
+
+                  {/* 스크롤 이미지 그리드 (곡률 없이 직사각형) */}
+                  <div className="max-h-56 overflow-y-auto border border-stone-100 p-1">
+                    {isUnsplashLoading ? (
+                      <div className="flex items-center justify-center py-8 text-stone-400 text-xs gap-1.5">
+                        <Loader2 className="w-4 h-4 animate-spin text-stone-700" />
+                        <span>사진 불러오는 중...</span>
+                      </div>
+                    ) : unsplashError ? (
+                      <div className="text-center py-6 text-stone-400 text-[11px]">{unsplashError}</div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {unsplashResults.map((photo) => (
+                          <button
+                            key={photo.id}
+                            type="button"
+                            onClick={() => {
+                              handleSelectUnsplashPhoto(photo.urls?.regular || photo.urls?.small);
+                              setActiveImagePanel(null);
+                            }}
+                            className="group relative aspect-[4/3] rounded-none overflow-hidden border border-stone-200 hover:border-stone-900 cursor-pointer"
+                          >
+                            <img
+                              src={photo.urls?.small || photo.urls?.regular}
+                              alt={photo.alt_description || "사진"}
+                              className="w-full h-full object-cover rounded-none group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+                              적용하기
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ⭐ 버튼 하단에 스크롤되어 나타나는 인라인 창: 동아일보 DB (곡률 없이 직사각형 형태) */}
+              {activeImagePanel === "dongaDb" && (
+                <div className="p-3 bg-white border border-stone-200/90 shadow-2xs space-y-2.5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-stone-100">
+                    <span className="text-[11px] font-black text-stone-800">동아일보 보도사진 DB</span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveImagePanel(null)}
+                      className="text-stone-400 hover:text-stone-700 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* 스크롤 이미지 그리드 (곡률 없이 직사각형) */}
+                  <div className="max-h-56 overflow-y-auto border border-stone-100 p-1">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {DONGA_DB_PHOTOS.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            updateActiveCard("bgImage", item.url);
+                            setInstagramImage(item.url);
+                            showToast(`"${item.caption}" 사진이 적용되었습니다.`);
+                            setActiveImagePanel(null);
+                          }}
+                          className="group relative aspect-[4/3] rounded-none overflow-hidden border border-stone-200 hover:border-stone-900 cursor-pointer text-left"
+                        >
+                          <img
+                            src={item.url}
+                            alt={item.caption}
+                            className="w-full h-full object-cover rounded-none group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent flex flex-col justify-end p-1.5">
+                            <span className="text-[9px] text-white font-bold truncate leading-tight">
+                              {item.caption}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 현재 배경 상태 및 검정 배경 복구 버튼 */}
+              {activeCard.bgImage ? (
+                <div className="flex items-center justify-between p-2 rounded-xl bg-stone-100/80 border border-stone-200/70 text-xs">
+                  <span className="text-[11px] font-bold text-stone-700 truncate max-w-[120px]">
+                    이미지 적용됨
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetBlackBg}
+                    className="text-[10px] font-bold text-stone-600 hover:text-rose-600 transition cursor-pointer"
+                  >
+                    검정 배경으로 변경
+                  </button>
+                </div>
+              ) : (
+                <div className="p-2 rounded-xl bg-stone-100/50 border border-dashed border-stone-200 text-center">
+                  <span className="text-[10px] text-stone-400 font-medium">기본 검정 배경 사용 중</span>
+                </div>
+              )}
+            </div>
+
+            {/* 카드뉴스 정보 배치 및 텍스트 수정 영역 (첨부 이미지 UI 맥락 적용) */}
+            <div className="space-y-3 pt-2">
+              {/* 상단 라벨: 표지 · 핵심 제목 or N번 카드 · 본문 */}
+              <div className="flex items-center justify-between pb-2 border-b border-stone-200/60">
+                <strong className="text-xs font-black text-stone-900 tracking-tight">
+                  {activeCardIndex === 0 ? "표지 · 핵심 제목" : `${activeCardIndex + 1}번 카드 · ${activeCard.role || "본문"}`}
+                </strong>
+                <span className="text-[10px] font-bold text-stone-500 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200/60">
+                  {activeCardIndex + 1}/{cards.length}
+                </span>
+              </div>
+
+              {/* 1. 정보 배치 드롭다운 */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-stone-700 block">정보 배치</label>
+                <div className="relative">
+                  <select
+                    value={activeCard.layout || "standard"}
+                    onChange={(e) => updateActiveCard("layout", e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-bold text-stone-800 bg-white border border-stone-300 rounded-none outline-none focus:border-stone-900 appearance-none shadow-2xs cursor-pointer pr-8"
+                  >
+                    <option value="standard">설명형</option>
+                    <option value="comparison">비교형</option>
+                    <option value="list">목록형</option>
+                    <option value="steps">단계형</option>
+                    <option value="stat">수치 강조형</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-stone-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 2. 강조할 구절 (쉼표로 구분, 최대 8개) & 글자 크기 체크박스 */}
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-stone-700 block">
+                  강조할 구절 (쉼표로 구분, 최대 8개)
+                </label>
+                <input
+                  type="text"
+                  value={activeCard.highlights || ""}
+                  onChange={(e) => updateActiveCard("highlights", e.target.value)}
+                  placeholder="현재 제목·본문에 있는 구절을 입력하세요"
+                  className="w-full px-2.5 py-1.5 text-xs text-stone-800 bg-white border border-stone-300 rounded-none outline-none focus:border-stone-900 shadow-2xs"
+                />
+
+                <label className="flex items-center gap-1.5 pt-0.5 text-xs text-stone-700 cursor-pointer select-none font-medium">
+                  <input
+                    type="checkbox"
+                    checked={!!activeCard.isCompact}
+                    onChange={(e) => updateActiveCard("isCompact", e.target.checked)}
+                    className="w-3.5 h-3.5 accent-stone-900 rounded-none cursor-pointer"
+                  />
+                  <span>글자를 조금 작게 표시</span>
+                </label>
+              </div>
+
+              {/* 3. 안내 문구 및 상태 표시 문구 */}
+              <div className="space-y-1 pt-1 text-[10.5px] text-stone-500 leading-snug">
+                <p>
+                  비교형은 본문을 두 줄로, 목록·단계형은 2~4개 항목으로 줄바꿈하세요. 단계형은 실제 순서가 있는 내용에 사용하세요.
+                </p>
+                <p className="font-bold text-stone-700 pt-0.5">
+                  글 영역 확인 완료 · 글 크기 {activeCard.isCompact ? "90%" : "100%"}
+                </p>
+              </div>
+
+              {/* 4. 카드 제목 & 본문 내용 실시간 수정 입력란 */}
+              <div className="pt-2 border-t border-stone-200/70 space-y-2.5">
+                {/* 상단 태그 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-stone-700 block">상단 태그</label>
+                  <input
+                    type="text"
+                    value={activeCard.tag || ""}
+                    onChange={(e) => updateActiveCard("tag", e.target.value)}
+                    placeholder="태그 (예: 심층 기획)"
+                    className="w-full px-2.5 py-1.5 text-xs text-stone-800 bg-white border border-stone-300 rounded-none outline-none focus:border-stone-900 shadow-2xs"
+                  />
+                </div>
+
+                {/* 카드 제목 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-stone-700 block">카드 제목</label>
+                  <textarea
+                    rows={2}
+                    value={activeCard.title || ""}
+                    onChange={(e) => updateActiveCard("title", e.target.value)}
+                    placeholder="카드 제목을 입력하세요"
+                    className="w-full px-2.5 py-1.5 text-xs font-bold leading-relaxed text-stone-800 bg-white border border-stone-300 rounded-none outline-none focus:border-stone-900 resize-none shadow-2xs"
+                  />
+                </div>
+
+                {/* 본문 내용 */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-stone-700 block">본문 내용</label>
+                  <textarea
+                    rows={3}
+                    value={activeCard.body || ""}
+                    onChange={(e) => updateActiveCard("body", e.target.value)}
+                    placeholder="본문 내용을 입력하세요"
+                    className="w-full px-2.5 py-1.5 text-xs text-stone-700 bg-white border border-stone-300 rounded-none outline-none focus:border-stone-900 resize-none shadow-2xs"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
           </>
@@ -2022,8 +2848,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
         {/* ──────── [플랫폼 배포 화면 메인 박스 (activePlatform !== "cardnews")] ──────── */}
         {activePlatform !== "cardnews" && (
           <>
-            {/* ──────── [중앙 메인 박스 (lg:col-span-5 xl:col-span-6)]: 플랫폼 전환 탭 + 목업 인라인 편집 ──────── */}
-            <div className="lg:col-span-5 xl:col-span-6 space-y-4">
+            {/* ──────── [중앙 메인 박스 (lg:col-span-5 xl:col-span-6)]: 플랫폼 전환 탭 + 목업 인라인 편집 (고정 sticky 적용) ──────── */}
+            <div className="lg:col-span-5 xl:col-span-6 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar space-y-4">
               {/* 플랫폼 전환 탭 바 */}
               <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-2xl border border-stone-200/80 w-fit shadow-xs">
                 <button
@@ -2246,8 +3072,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                       <p className="text-[10px]">방금 전 · AI Newsroom 공식 배포 채널</p>
                     </div>
 
-                    {/* 피드 하단 빠른 액션 바 */}
-                    <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                    {/* 피드 하단 빠른 액션 바 (캡션 복사) */}
+                    <div className="pt-2 border-t border-stone-100 flex items-center justify-end gap-2">
                       <button
                         type="button"
                         onClick={handleCopyInstagramCaption}
@@ -2255,14 +3081,6 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                       >
                         <Copy className="w-3.5 h-3.5 text-stone-500" />
                         <span>{isInstagramCopied ? "복사 완료 ✓" : "캡션 복사"}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => showToast("✨ Instagram에 성공적으로 배포되었습니다!")}
-                        className="px-4 py-1.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                      >
-                        <Send className="w-3.5 h-3.5 text-[#8ECAE6]" />
-                        <span>Instagram에 실제 게시</span>
                       </button>
                     </div>
                   </div>
@@ -2383,8 +3201,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                     </div>
                   </div>
 
-                  {/* 하단 액션 버튼 바 */}
-                  <div className="pt-2 border-t border-stone-100 flex items-center justify-between gap-2">
+                  {/* 하단 액션 버튼 바 (스레드 타래 복사) */}
+                  <div className="pt-2 border-t border-stone-100 flex items-center justify-end gap-2">
                     <button
                       type="button"
                       onClick={handleCopyThreads}
@@ -2392,14 +3210,6 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                     >
                       <Copy className="w-3.5 h-3.5 text-stone-500" />
                       <span>{isThreadsCopied ? "복사 완료 ✓" : "스레드 타래 복사"}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showToast("✨ Threads에 성공적으로 배포되었습니다!")}
-                      className="px-4 py-1.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                    >
-                      <Send className="w-3.5 h-3.5 text-[#8ECAE6]" />
-                      <span>Threads에 실제 게시</span>
                     </button>
                   </div>
                 </div>
@@ -2415,10 +3225,56 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
               />
             </div>
 
-            {/* ──────── [우측 사이드 패널 (lg:col-span-4 xl:col-span-3)]: 연계 원고 검수 + 원고 구성 ──────── */}
-            <div className="lg:col-span-4 xl:col-span-3 space-y-4">
+            {/* ──────── [우측 사이드 패널 (lg:col-span-4 xl:col-span-3)]: 연계 원고 검수 + 원고 구성 (스크롤 시 고정되어 따라오는 sticky 적용) ──────── */}
+            <div className="lg:col-span-4 xl:col-span-3 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar space-y-4">
               {/* 1. 상단: 연계 원고 검수 박스 (우측 사이드로 이동) */}
               <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-3.5">
+                {/* 오른쪽 메인 박스 상단: 이미지 불러오기 기능 */}
+                <div className="pb-3 border-b border-stone-200/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-stone-700" />
+                      <span className="text-xs font-black text-[#292929]">이미지 불러오기</span>
+                    </div>
+                    <span className="text-[10px] text-stone-400 font-medium">보도사진 연동</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUnsplashModal(true);
+                        if (unsplashResults.length === 0) handleSearchUnsplash(unsplashQuery);
+                      }}
+                      className="px-2 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 text-stone-800 text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                      title="언플래쉬에서 고화질 사진 찾기"
+                    >
+                      <Search className="w-3.5 h-3.5 text-stone-600" />
+                      <span className="truncate">언플래쉬</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowDongaDbModal(true)}
+                      className="px-2 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 text-stone-800 text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                      title="동아일보 보도사진 DB 아카이브"
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-stone-600" />
+                      <span className="truncate">동아일보 DB</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => platformFileInputRef.current?.click()}
+                      className="px-2 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 text-stone-800 text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
+                      title="내 PC에서 사진 불러오기"
+                    >
+                      <FileUp className="w-3.5 h-3.5 text-stone-600" />
+                      <span className="truncate">내 PC</span>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
                   <div className="space-y-0.5">
                     <p className="text-[11px] text-stone-700 font-medium">
@@ -2574,8 +3430,8 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
           3. Unsplash 사진 검색 모달
          ────────────────────────────────────────── */}
       {showUnsplashModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-smooth-in">
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[85vh] flex flex-col border border-white/80 animate-smooth-pop">
+        <div className="fixed inset-0 z-50 bg-stone-950/45 backdrop-blur-md flex items-center justify-center p-4 animate-smooth-in">
+          <div className="bg-white/96 backdrop-blur-2xl rounded-3xl p-6 max-w-2xl w-full shadow-[0_24px_64px_-12px_rgba(0,0,0,0.22),0_8px_24px_-4px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,1)] space-y-4 max-h-[85vh] flex flex-col border border-white ring-1 ring-stone-900/10 animate-smooth-pop">
             <div className="flex items-center justify-between pb-3 border-b border-stone-100">
               <div className="flex items-center gap-2">
                 <ImageIcon className="w-4 h-4 text-stone-700" />
@@ -2631,7 +3487,7 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                       key={photo.id}
                       type="button"
                       onClick={() => handleSelectUnsplashPhoto(photo.urls?.regular || photo.urls?.small)}
-                      className="group relative aspect-[4/5] rounded-xl overflow-hidden border border-stone-200 hover:border-black transition-all cursor-pointer"
+                      className="group relative aspect-[4/5] rounded-none overflow-hidden border border-stone-200 hover:border-black transition-all cursor-pointer"
                     >
                       <img
                         src={photo.urls?.small || photo.urls?.regular}
@@ -2651,11 +3507,78 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
       )}
 
       {/* ──────────────────────────────────────────
+          3-1. 동아일보 DB 보도사진 모달
+         ────────────────────────────────────────── */}
+      {showDongaDbModal && (
+        <div className="fixed inset-0 z-50 bg-stone-950/45 backdrop-blur-md flex items-center justify-center p-4 animate-smooth-in">
+          <div className="bg-white/96 backdrop-blur-2xl rounded-3xl p-6 max-w-2xl w-full shadow-[0_24px_64px_-12px_rgba(0,0,0,0.22),0_8px_24px_-4px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,1)] space-y-4 max-h-[85vh] flex flex-col border border-white ring-1 ring-stone-900/10 animate-smooth-pop">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-stone-700" />
+                <h3 className="text-sm font-black text-[#292B2F]">동아일보 보도사진 아카이브</h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/60">
+                  공식 언론 DB
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDongaDbModal(false)}
+                className="w-7 h-7 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-[300px] border border-stone-100 rounded-none p-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {DONGA_DB_PHOTOS.map((photo) => (
+                  <div
+                    key={photo.id}
+                    onClick={() => {
+                      if (activePlatform === "cardnews") {
+                        updateActiveCard("bgImage", photo.url);
+                        updateActiveCard("bgType", "image");
+                        showToast("동아일보 DB 사진이 카드 배경으로 적용되었습니다.");
+                      } else {
+                        setInstagramImage(photo.url);
+                        showToast("동아일보 DB 사진이 피드 이미지로 적용되었습니다.");
+                      }
+                      setShowDongaDbModal(false);
+                    }}
+                    className="group cursor-pointer rounded-none border border-stone-200/80 overflow-hidden bg-stone-50 hover:bg-white hover:border-stone-400 hover:shadow-xs transition flex flex-col"
+                  >
+                    <div className="aspect-video w-full overflow-hidden bg-stone-200 relative rounded-none">
+                      <img
+                        src={photo.url}
+                        alt={photo.caption}
+                        className="w-full h-full object-cover group-hover:scale-102 transition duration-200"
+                      />
+                      <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-[10px] text-white font-medium">
+                        {photo.date}
+                      </span>
+                    </div>
+                    <div className="p-2.5 space-y-1">
+                      <p className="text-[11px] font-bold text-stone-800 line-clamp-1 leading-snug">
+                        {photo.caption}
+                      </p>
+                      <p className="text-[10px] text-stone-400">
+                        출처: {photo.source}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────
           4. 배포 성공 알림 모달
          ────────────────────────────────────────── */}
       {isPublishModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-6 md:p-8 max-w-sm w-full shadow-2xl space-y-4 text-center border border-white/80 animate-float-in">
+        <div className="fixed inset-0 z-50 bg-stone-950/45 backdrop-blur-md flex items-center justify-center p-4 animate-smooth-in">
+          <div className="bg-white/96 backdrop-blur-2xl rounded-3xl p-7 md:p-8 max-w-sm w-full shadow-[0_24px_64px_-12px_rgba(0,0,0,0.22),0_8px_24px_-4px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,1)] space-y-4 text-center border border-white ring-1 ring-stone-900/10 animate-smooth-pop">
             <div className="w-12 h-12 rounded-xl bg-[#8ECAE6] text-[#1E293B] flex items-center justify-center mx-auto shadow-xs">
               <Check className="w-6 h-6 stroke-[3]" />
             </div>
@@ -2679,13 +3602,13 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
          ────────────────────────────────────────── */}
       {showFullArticleModal && (
         <div
-          className="fixed inset-0 z-50 bg-[#292B2F]/55 backdrop-blur-xs flex items-center justify-center p-4 pt-[74px] md:pt-[70px] animate-smooth-in"
+          className="fixed inset-0 z-50 bg-stone-950/45 backdrop-blur-md flex items-center justify-center p-4 pt-[74px] md:pt-[70px] animate-smooth-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowFullArticleModal(false);
           }}
         >
           <div
-            className="bg-[#FAF8F5]/95 backdrop-blur-xl border border-white/80 rounded-2xl shadow-[0_24px_60px_-15px_rgba(41,43,47,0.35)] max-w-5xl w-full flex flex-col overflow-hidden animate-smooth-pop max-h-[82vh]"
+            className="bg-[#FAF8F5]/96 backdrop-blur-2xl border border-white ring-1 ring-stone-900/10 rounded-3xl shadow-[0_24px_64px_-12px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,1)] max-w-5xl w-full flex flex-col overflow-hidden animate-smooth-pop max-h-[82vh]"
           >
             {/* [모달 상단 헤더 바] */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#E7E2D9] bg-white/70 flex-shrink-0">
@@ -2958,8 +3881,11 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
           5. 플로팅 토스트 알림
          ────────────────────────────────────────── */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#18181B] text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-xl border border-zinc-700 animate-bounce">
-          {toastMessage}
+        <div className="fixed bottom-6 right-6 z-50 bg-white/95 backdrop-blur-xl text-stone-950 px-5 py-2.5 rounded-full text-xs font-black shadow-[0_12px_36px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,1)] border border-white ring-1 ring-stone-900/15 animate-smooth-pop flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-stone-900 flex-shrink-0 shadow-[0_0_6px_rgba(0,0,0,0.3)]" />
+          <span>
+            {typeof toastMessage === "string" ? toastMessage.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "").trim() : toastMessage}
+          </span>
         </div>
       )}
     </div>

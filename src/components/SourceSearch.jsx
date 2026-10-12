@@ -158,11 +158,11 @@ export default function SourceSearch({ onConnectToArticle, isModal = false, isSi
   }
 
   const containerClasses = isModal
-    ? "bg-[#FAF8F5] rounded-3xl p-6 md:p-8 max-w-4xl w-full shadow-2xl border border-[#E7E2D9] space-y-6 max-h-[90vh] overflow-y-auto"
+    ? "bg-white/96 backdrop-blur-2xl rounded-3xl p-6 md:p-8 max-w-4xl w-full shadow-[0_24px_64px_-12px_rgba(0,0,0,0.25),inset_0_1px_1px_rgba(255,255,255,1)] border border-white ring-1 ring-stone-900/10 space-y-6 max-h-[90vh] overflow-y-auto animate-smooth-pop"
     : "w-full py-6 px-4 space-y-6 animate-float-in";
 
   return (
-    <div className={isModal ? "fixed inset-0 z-50 bg-[#292B2F]/40 backdrop-blur-xs flex items-center justify-center p-4" : ""}>
+    <div className={isModal ? "fixed inset-0 z-50 bg-stone-950/45 backdrop-blur-md flex items-center justify-center p-4 animate-smooth-in" : ""}>
       <div className={containerClasses}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#E7E2D9] pb-4">

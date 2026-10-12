@@ -3,6 +3,7 @@ import FactCheckDrawer from "./FactCheckDrawer";
 import PhotoSideDrawer from "./PhotoSideDrawer";
 import PhotoEditorView from "./PhotoEditorView";
 import SourceSearch from "./SourceSearch";
+import ArticleCheckModal from "./ArticleCheckModal";
 import {
   Sparkles,
   Search,
@@ -80,6 +81,9 @@ export default function ArticleWriter({
   // 우측 확장 사이드 박스 상태: null (닫힘) | 'photo' (사진 첨부) | 'search' (취재자료) | 'factcheck' (팩트체크)
   const [activeSidePanel, setActiveSidePanel] = useState(null);
   const isSidePanelOpen = Boolean(activeSidePanel);
+
+  // 팩트체크 사전 기사 검증률 모달 열림 상태
+  const [showCheckModal, setShowCheckModal] = useState(false);
 
   useEffect(() => {
     if (factCheckActive) {
@@ -1892,9 +1896,8 @@ export default function ArticleWriter({
 
         {/* 수정 반영 성공 토스트 알림 */}
         {toastMessage && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white px-4 py-2.5 rounded-full shadow-lg border border-slate-700/60 flex items-center gap-2 text-xs font-semibold animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            <span>{toastMessage}</span>
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md text-slate-900 px-5 py-2.5 rounded-full shadow-xl border border-slate-200/90 flex items-center text-xs font-bold animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <span>{typeof toastMessage === "string" ? toastMessage.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "").trim() : toastMessage}</span>
           </div>
         )}
 
@@ -2022,8 +2025,7 @@ export default function ArticleWriter({
                     if (activeSidePanel === "factcheck") {
                       setActiveSidePanel(null);
                     } else {
-                      setActiveSidePanel("factcheck");
-                      if (onRunFactCheck) onRunFactCheck();
+                      setShowCheckModal(true);
                     }
                   }}
                   className={`absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border backdrop-blur-md ${factCheckActive || activeSidePanel === "factcheck"
@@ -2066,8 +2068,8 @@ export default function ArticleWriter({
           4. CMS 최종 발행 성공 알림 모달
          ────────────────────────────────────────── */}
       {isCmsSuccessModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl text-center space-y-4 animate-float-in border border-slate-100">
+        <div className="fixed inset-0 z-50 bg-stone-950/45 backdrop-blur-md flex items-center justify-center p-4 animate-smooth-in">
+          <div className="bg-white/96 backdrop-blur-2xl rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-[0_24px_64px_-12px_rgba(0,0,0,0.22),0_8px_24px_-4px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,1)] text-center space-y-4 animate-smooth-pop border border-white ring-1 ring-stone-900/10">
             <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
               <Check className="w-6 h-6 stroke-[3]" />
             </div>
@@ -2087,8 +2089,8 @@ export default function ArticleWriter({
 
       {/* AI 기사 초안 생성 모달 */}
       {showDraftModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-2xl border border-white space-y-5 animate-float-in">
+        <div className="fixed inset-0 z-50 bg-stone-950/45 backdrop-blur-md flex items-center justify-center p-4 animate-smooth-in">
+          <div className="bg-white/96 backdrop-blur-2xl rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-[0_24px_64px_-12px_rgba(0,0,0,0.22),0_8px_24px_-4px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,1)] border border-white ring-1 ring-stone-900/10 space-y-5 animate-smooth-pop">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Wand2 className="w-4 h-4 text-amber-500" />
@@ -2163,6 +2165,17 @@ export default function ArticleWriter({
           </div>
         </div>
       )}
+
+      {/* 팩트체크 사전 기사 검증률 모달 */}
+      <ArticleCheckModal
+        isOpen={showCheckModal}
+        onClose={() => setShowCheckModal(false)}
+        onStartCheck={() => {
+          setShowCheckModal(false);
+          setActiveSidePanel("factcheck");
+          if (onRunFactCheck) onRunFactCheck();
+        }}
+      />
 
     </div>
   );

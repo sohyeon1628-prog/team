@@ -24,10 +24,10 @@ export default function LoginScreen({ initialMode = "login", onClose, onLoginSuc
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white text-slate-700 hover:text-slate-950 text-xs font-bold transition-all border border-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md cursor-pointer active:scale-95"
+          className="text-slate-600 hover:text-slate-950 transition-colors cursor-pointer p-1 active:scale-90"
+          title="에디터로 돌아가기"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>에디터로 돌아가기</span>
+          <ArrowLeft className="w-5 h-5 stroke-[2.2]" />
         </button>
 
         <span className="text-[11px] font-semibold text-slate-400">

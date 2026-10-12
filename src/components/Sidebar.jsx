@@ -211,32 +211,52 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, activeTab, setAct
           </div>
         )}
 
-        <button
-          onClick={() => alert("Settings panel.")}
-          title={!isExpanded ? "Settings" : undefined}
-          className={`transition-all duration-200 cursor-pointer relative group text-left ${isExpanded
-            ? "w-full hover:bg-white/50 rounded-[20px] p-2 pr-3.5 flex items-center gap-3 text-[#444444] hover:text-[#222222]"
-            : "w-11 h-11 rounded-full flex items-center justify-center text-[#555555] hover:text-[#222222] hover:bg-white/50"
-            }`}
-        >
-          {isExpanded ? (
-            <div className="flex items-center gap-3 truncate">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[#555555] group-hover:text-[#222222]">
-                <Settings className="w-4.5 h-4.5" />
-              </div>
-              <span className="text-xs md:text-sm font-medium text-[#444444] group-hover:text-[#222222] truncate">
-                Settings
-              </span>
-            </div>
-          ) : (
-            <>
-              <Settings className="w-4.5 h-4.5" />
-              <div className="absolute left-[82px] bg-[#292929] text-white text-xs font-medium px-2.5 py-1 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md z-50">
-                Settings
-              </div>
-            </>
-          )}
-        </button>
+        {(() => {
+          const isSettingsActive = activeTab === "settings";
+          return (
+            <button
+              onClick={() => setActiveTab("settings")}
+              title={!isExpanded ? "Settings" : undefined}
+              className={`transition-all duration-200 cursor-pointer relative group text-left ${isExpanded
+                ? isSettingsActive
+                  ? "w-full bg-white/85 shadow-sm border border-white/90 rounded-[20px] p-2 pr-3.5 flex items-center justify-between"
+                  : "w-full hover:bg-white/50 rounded-[20px] p-2 pr-3.5 flex items-center gap-3 text-[#444444] hover:text-[#222222]"
+                : isSettingsActive
+                  ? "w-11 h-11 rounded-full flex items-center justify-center bg-[#292929] text-[#8ECAE6] shadow-[0_4px_14px_rgba(41,41,41,0.16)] scale-105"
+                  : "w-11 h-11 rounded-full flex items-center justify-center text-[#555555] hover:text-[#222222] hover:bg-white/50"
+                }`}
+            >
+              {isExpanded ? (
+                <>
+                  <div className="flex items-center gap-3 truncate">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${isSettingsActive
+                      ? "bg-[#292929] text-[#8ECAE6] shadow-xs"
+                      : "text-[#555555] group-hover:text-[#222222]"
+                      }`}>
+                      <Settings className="w-4.5 h-4.5" />
+                    </div>
+                    <span className={`text-xs md:text-sm truncate ${isSettingsActive ? "font-bold text-[#222222]" : "font-medium text-[#444444] group-hover:text-[#222222]"}`}>
+                      Settings
+                    </span>
+                  </div>
+                  {isSettingsActive && (
+                    <ChevronRight className="w-4 h-4 text-[#8E8982] flex-shrink-0 ml-1" />
+                  )}
+                </>
+              ) : (
+                <>
+                  <Settings
+                    className={`w-4.5 h-4.5 transition-colors ${isSettingsActive ? "text-[#8ECAE6]" : "text-[#555555] group-hover:text-[#222222]"
+                      }`}
+                  />
+                  <div className="absolute left-[82px] bg-[#292929] text-white text-xs font-medium px-2.5 py-1 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md z-50">
+                    Settings
+                  </div>
+                </>
+              )}
+            </button>
+          );
+        })()}
 
         {/* ──────────────────────────────────────────
             6. 최하단 사용자 프로필 영역
