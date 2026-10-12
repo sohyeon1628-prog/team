@@ -224,7 +224,7 @@ export default function ArchiveView() {
 
         {/* ══════════════════════════════════════════════════════════
             [우측 패널 컬럼] (lg:col-span-4 flex flex-col justify-between gap-4)
-            - 1. 최상단 가로형 캡슐 바 (기사 필터 탭: 전체 / 작성 중 / 발행본)
+            - 1. 최상단 가로형 캡슐 바 (기사 필터 탭: 전체 / 원고 / 송고)
             - 2. 중단 3단 스택 레이어 카드 (원고 / 취재자료 / 인터뷰·녹취)
                  각 카드의 좌측에 세로 알약 탭 부착
             - 3. 하단 카드 덱 모듈 (발행 이력 및 타임라인 - 비스듬히 겹친 카드 덱)
@@ -253,7 +253,7 @@ export default function ArchiveView() {
                   : "text-[#57514A] hover:text-[#292B2F]"
               }`}
             >
-              작성 중
+              원고
             </button>
             <button
               type="button"
@@ -264,7 +264,7 @@ export default function ArchiveView() {
                   : "text-[#57514A] hover:text-[#292B2F]"
               }`}
             >
-              발행본
+              송고
             </button>
           </div>
 

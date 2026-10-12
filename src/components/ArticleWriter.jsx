@@ -4,6 +4,7 @@ import PhotoSideDrawer from "./PhotoSideDrawer";
 import PhotoEditorView from "./PhotoEditorView";
 import SourceSearch from "./SourceSearch";
 import ArticleCheckModal from "./ArticleCheckModal";
+import VersionHistoryModal from "./VersionHistoryModal";
 import {
   Sparkles,
   Search,
@@ -39,7 +40,8 @@ import {
   ArrowLeft,
   MessageSquare,
   Heart,
-  Volume2
+  Volume2,
+  History
 } from "lucide-react";
 
 export default function ArticleWriter({
@@ -84,6 +86,19 @@ export default function ArticleWriter({
 
   // 팩트체크 사전 기사 검증률 모달 열림 상태
   const [showCheckModal, setShowCheckModal] = useState(false);
+
+  // 저장 이력 및 복원 모달 열림 상태
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  // 상위 모델 재검토 상태 맵: { [issueId]: "idle" | "running" | "done" }
+  const [recheckMap, setRecheckMap] = useState({});
+
+  const handleRecheck = (issueId) => {
+    setRecheckMap((prev) => ({ ...prev, [issueId]: "running" }));
+    setTimeout(() => {
+      setRecheckMap((prev) => ({ ...prev, [issueId]: "done" }));
+    }, 1200);
+  };
 
   useEffect(() => {
     if (factCheckActive) {
@@ -1342,8 +1357,8 @@ export default function ArticleWriter({
 
                 {/* 기사 헤드라인 영역 */}
                 <div className="space-y-2 relative group">
-                  {/* 기사 제목 텍스트 바로 위에 위치한 카테고리 체크 드롭다운 (화이트계열 회색 글래스모피즘) */}
-                  <div className="flex items-center justify-start">
+                  {/* 기사 제목 텍스트 바로 위에 위치한 카테고리 선택 및 저장 이력 상태 */}
+                  <div className="flex items-center justify-between">
                     <div className="relative" ref={categoryMenuRef}>
                       <button
                         type="button"
@@ -1382,6 +1397,18 @@ export default function ArticleWriter({
                         </div>
                       )}
                     </div>
+
+                    {/* 저장 이력 및 자동 저장 상태 버튼 (data-testid="save-status") */}
+                    <button
+                      type="button"
+                      onClick={() => setShowHistoryModal(true)}
+                      data-testid="save-status"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-stone-500 hover:text-stone-900 hover:bg-stone-100/70 transition cursor-pointer select-none"
+                      title="저장 이력 확인 및 이전 저장본 복원"
+                    >
+                      <History className="w-3.5 h-3.5 text-stone-500" />
+                      <span>자동 저장됨 · 이력</span>
+                    </button>
                   </div>
 
                   {/* 기사 제목 라벨 및 AI 버튼 */}
@@ -1598,6 +1625,27 @@ export default function ArticleWriter({
                       >
                         <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                       </button>
+
+                      {/* 상위 모델 재검토 말풍선 UI (data-testid="recheck-tip") */}
+                      <div data-testid="recheck-tip" className="inline-flex items-center gap-1 pl-1.5 border-l border-white/20">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRecheck(hoveredIssue.id);
+                          }}
+                          className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 hover:bg-white/20 text-stone-200 hover:text-white transition cursor-pointer flex items-center gap-1"
+                          title="로컬 판정 미확정 문장을 상위 모델로 재판정"
+                        >
+                          {recheckMap[hoveredIssue.id] === "running" ? (
+                            <span>상위모델 재검토 중…</span>
+                          ) : recheckMap[hoveredIssue.id] === "done" ? (
+                            <span className="text-emerald-300">AI 재판정 완료</span>
+                          ) : (
+                            <span>상위모델 재검토</span>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -1902,19 +1950,35 @@ export default function ArticleWriter({
         )}
 
         {viewMode !== "preview" && activeSidePanel === "factcheck" && (
-          <FactCheckDrawer
-            isOpen={true}
-            onClose={() => {
-              setActiveSidePanel(null);
-              setHighlightedClaim(null);
-              setHoveredIssue(null);
-            }}
-            article={article}
-            setArticle={setArticle}
-            isSidebarCollapsed={isSidebarCollapsed}
-            onHighlightText={handleHighlightText}
-            highlightedText={highlightedClaim}
-          />
+          <div className="flex items-start gap-4 flex-shrink-0 z-20">
+            {/* 1. 기사 검증률 팝업 박스 (오른쪽 사이드 박스와 동시에 나란히 배치) */}
+            {showCheckModal && (
+              <ArticleCheckModal
+                isOpen={true}
+                isSideBySide={true}
+                onClose={() => setShowCheckModal(false)}
+                onStartCheck={() => {
+                  if (onRunFactCheck) onRunFactCheck();
+                }}
+              />
+            )}
+
+            {/* 2. 팩트체크 & 근거자료 검증 사이드 박스 */}
+            <FactCheckDrawer
+              isOpen={true}
+              onClose={() => {
+                setActiveSidePanel(null);
+                setShowCheckModal(false);
+                setHighlightedClaim(null);
+                setHoveredIssue(null);
+              }}
+              article={article}
+              setArticle={setArticle}
+              isSidebarCollapsed={isSidebarCollapsed}
+              onHighlightText={handleHighlightText}
+              highlightedText={highlightedClaim}
+            />
+          </div>
         )}
 
         {/* 기사 작성 화면 메인 박스 오른쪽 상단 바로 옆에 위치한 일관된 캡슐형 Hover 확장 사이드바 (미리보기 화면에서는 숨김) */}
@@ -1986,19 +2050,7 @@ export default function ArticleWriter({
               {/* 미니 구분선 */}
               <div className="w-6 h-[1px] bg-slate-200/80 my-0.5 ml-2" />
 
-              {/* 5. AI 기사 초안 생성 */}
-              <div className="relative w-10 h-10 group">
-                <button
-                  type="button"
-                  onClick={() => setShowDraftModal(true)}
-                  className="absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border border-slate-200/90 bg-white/95 backdrop-blur-md text-slate-700 group-hover:text-slate-950 group-hover:border-slate-300"
-                >
-                  <Wand2 className="w-4.5 h-4.5 flex-shrink-0 text-slate-700" />
-                  <span className="text-xs font-bold whitespace-nowrap pl-2 pr-2.5 opacity-0 max-w-0 group-hover:max-w-[160px] group-hover:opacity-100 transition-all duration-200 overflow-hidden select-none">
-                    AI 기사 초안 생성
-                  </span>
-                </button>
-              </div>
+
 
               {/* 6. 취재자료 검색 */}
               <div className="relative w-10 h-10 group">
@@ -2024,8 +2076,11 @@ export default function ArticleWriter({
                   onClick={() => {
                     if (activeSidePanel === "factcheck") {
                       setActiveSidePanel(null);
+                      setShowCheckModal(false);
                     } else {
+                      setActiveSidePanel("factcheck");
                       setShowCheckModal(true);
+                      if (onRunFactCheck) onRunFactCheck();
                     }
                   }}
                   className={`absolute left-0 top-0 h-10 w-10 group-hover:w-max min-w-[40px] px-2.5 rounded-full flex items-center transition-all duration-200 ease-out z-10 group-hover:z-30 overflow-hidden cursor-pointer active:scale-95 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-md border backdrop-blur-md ${factCheckActive || activeSidePanel === "factcheck"
@@ -2166,14 +2221,29 @@ export default function ArticleWriter({
         </div>
       )}
 
-      {/* 팩트체크 사전 기사 검증률 모달 */}
-      <ArticleCheckModal
-        isOpen={showCheckModal}
-        onClose={() => setShowCheckModal(false)}
-        onStartCheck={() => {
-          setShowCheckModal(false);
-          setActiveSidePanel("factcheck");
-          if (onRunFactCheck) onRunFactCheck();
+      {/* 팩트체크 사전 기사 검증률 모달 (사이드 패널이 비활성화된 상태일 때만 독립 모달로 동작) */}
+      {showCheckModal && activeSidePanel !== "factcheck" && (
+        <ArticleCheckModal
+          isOpen={true}
+          onClose={() => setShowCheckModal(false)}
+          onStartCheck={() => {
+            setShowCheckModal(false);
+            setActiveSidePanel("factcheck");
+            if (onRunFactCheck) onRunFactCheck();
+          }}
+        />
+      )}
+
+      {/* 저장 이력 및 이전 저장본 복원 모달 */}
+      <VersionHistoryModal
+        isOpen={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        onRestore={(restored) => {
+          setArticle((prev) => ({
+            ...prev,
+            title: restored.title || prev.title,
+            content: restored.excerpt || prev.content
+          }));
         }}
       />
 

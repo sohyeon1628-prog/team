@@ -9,8 +9,10 @@ import {
   FileCheck, 
   Plus, 
   ShieldCheck,
-  RefreshCw
+  RefreshCw,
+  Database
 } from "lucide-react";
+import SourceDeleteModal from "./SourceDeleteModal";
 
 /**
  * 팩트체크 및 근거자료 검증 우측 패널 (Drawer) 컴포넌트
@@ -24,6 +26,9 @@ export default function FactCheckDrawer({
 }) {
   // 업로드된 근거/취재 파일 목록 상태 (초기 상태: 미첨부)
   const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  // 취재자료 삭제 확인 모달 상태
+  const [deleteTargetSource, setDeleteTargetSource] = useState(null);
 
   // 대조 및 추출된 근거자료 목록 상태
   const [evidenceList, setEvidenceList] = useState([
@@ -171,8 +176,11 @@ export default function FactCheckDrawer({
         <div>
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <span>팩트체크 & 근거자료 검증</span>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-              실시간 연동
+            <span
+              data-testid="factcheck-status"
+              className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 border border-stone-200/70"
+            >
+              기준: #3 최신본
             </span>
           </h2>
           <p className="text-[11px] text-slate-500">
@@ -298,17 +306,19 @@ export default function FactCheckDrawer({
                     </div>
 
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                      {/* 색인 상태 배지 (정상: 색인 완료 / 진행중: 색인 중 / 실패: 색인 실패) */}
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                         file.status === "분석 완료"
                           ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
                           : "bg-blue-50 text-blue-700 border border-blue-200/60 animate-pulse"
                       }`}>
-                        {file.status}
+                        {file.status === "분석 완료" ? "색인 완료" : "색인 중 65%"}
                       </span>
                       <button
-                        onClick={() => handleDeleteFile(file.id)}
-                        className="p-1 text-slate-400 hover:text-red-600 rounded transition cursor-pointer"
-                        title="파일 삭제"
+                        type="button"
+                        onClick={() => setDeleteTargetSource(file)}
+                        className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                        title="자료 삭제"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -423,6 +433,16 @@ export default function FactCheckDrawer({
           확인 및 닫기
         </button>
       </div>
+      {/* 취재자료 삭제 확인 경고 모달 */}
+      <SourceDeleteModal
+        isOpen={Boolean(deleteTargetSource)}
+        source={deleteTargetSource}
+        onClose={() => setDeleteTargetSource(null)}
+        onConfirmDelete={(target) => {
+          handleDeleteFile(target.id);
+          setDeleteTargetSource(null);
+        }}
+      />
     </aside>
   );
 }

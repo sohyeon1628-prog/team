@@ -170,6 +170,10 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
   const [instagramAspectRatio, setInstagramAspectRatio] = useState("4:5"); // "4:5" | "1:1"
   const platformFileInputRef = useRef(null);
 
+  // 인스타그램 / 스레드 우측 상단 미디어 모드 ("image": 이미지 첨부, "cardnews": 카드뉴스 불러오기)
+  const [mediaSourceMode, setMediaSourceMode] = useState("image");
+  const [selectedCardNewsIndex, setSelectedCardNewsIndex] = useState(0);
+
   // 인스타그램 로컬 앱 연결 노드형 타임라인 워크플로우 상태
   const [instaConnectionStarted, setInstaConnectionStarted] = useState(false); // 연결 시작하기 토글
   const [instaActiveStep, setInstaActiveStep] = useState(1); // 0: 계정 연결, 1: 로그인 상태 확인(기본 실행 중), 2: 원고·카드 준비, 3: 게시 준비 완료
@@ -1629,55 +1633,6 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
           {/* 3. 플랫폼별 옵션 (카드뉴스 활성 시 사진 편집 도구 표시) */}
           {activePlatform === "cardnews" ? (
             <>
-              {/* 선택한 카드의 사진 */}
-              <div className="space-y-2 pb-3.5 border-b border-stone-200/60">
-                <h3 className="text-xs font-black text-[#292929]">선택한 카드의 사진</h3>
-
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowUnsplashModal(true);
-                      if (unsplashResults.length === 0) {
-                        handleSearchUnsplash(unsplashQuery);
-                      }
-                    }}
-                    className="btn-pill-dark w-full text-xs"
-                  >
-                    <span>Unsplash 사진 검색</span>
-                    <span className="btn-pill-badge" title="검색">
-                      <Search className="w-3.5 h-3.5 stroke-[2.2]" />
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="btn-pill-white w-full text-xs"
-                  >
-                    <span>내 사진 불러오기</span>
-                    <span className="btn-pill-badge" title="사진 불러오기">
-                      <ImageIcon className="w-3.5 h-3.5 stroke-[2.2]" />
-                    </span>
-                  </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    onChange={handleUploadLocalImage}
-                    className="hidden"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={handleResetBlackBg}
-                    className="w-full py-2 px-3 bg-[#18181B] hover:bg-black text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98"
-                  >
-                    <span>검정 배경으로 변경</span>
-                  </button>
-                </div>
-              </div>
-
               {/* 편집 안내 */}
               <div className="space-y-1">
                 <h3 className="text-xs font-black text-[#292929]">카드뉴스 편집 안내</h3>
@@ -2847,434 +2802,488 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
 
         {/* ──────── [플랫폼 배포 화면 메인 박스 (activePlatform !== "cardnews")] ──────── */}
         {activePlatform !== "cardnews" && (
-          <>
-            {/* ──────── [중앙 메인 박스 (lg:col-span-5 xl:col-span-6)]: 플랫폼 전환 탭 + 목업 인라인 편집 (고정 sticky 적용) ──────── */}
-            <div className="lg:col-span-5 xl:col-span-6 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar space-y-4">
-              {/* 플랫폼 전환 탭 바 */}
-              <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-2xl border border-stone-200/80 w-fit shadow-xs">
-                <button
-                  type="button"
-                  onClick={() => setActivePlatform("instagram")}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    activePlatform === "instagram"
-                      ? "bg-stone-900 text-white shadow-xs"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
-                  }`}
-                >
-                  Instagram
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivePlatform("threads")}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    activePlatform === "threads"
-                      ? "bg-stone-900 text-white shadow-xs"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
-                  }`}
-                >
-                  Threads
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivePlatform("cardnews")}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                    activePlatform === "cardnews"
-                      ? "bg-stone-900 text-white shadow-xs"
-                      : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
-                  }`}
-                >
-                  카드뉴스
-                </button>
-              </div>
+          <div className="lg:col-span-9 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar space-y-5">
+            {/* 플랫폼 전환 탭 바 */}
+            <div className="flex items-center gap-1.5 p-1 bg-white/80 backdrop-blur-md rounded-2xl border border-stone-200/80 w-fit shadow-xs">
+              <button
+                type="button"
+                onClick={() => setActivePlatform("instagram")}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activePlatform === "instagram"
+                    ? "bg-stone-900 text-white shadow-xs"
+                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
+                }`}
+              >
+                Instagram
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePlatform("threads")}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activePlatform === "threads"
+                    ? "bg-stone-900 text-white shadow-xs"
+                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
+                }`}
+              >
+                Threads
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePlatform("cardnews")}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  activePlatform === "cardnews"
+                    ? "bg-stone-900 text-white shadow-xs"
+                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/60"
+                }`}
+              >
+                카드뉴스
+              </button>
+            </div>
 
-              {/* ──────── [인스타그램 플랫폼 화면 및 인라인 편집] ──────── */}
-              {activePlatform === "instagram" && (
-                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 overflow-hidden text-xs w-full max-w-xl xl:max-w-2xl mx-auto transition-all">
-                  {/* 상단 인스타그램 헤더 */}
-                  <div className="px-3.5 py-2.5 flex items-center justify-between border-b border-stone-100">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[1.5px] shadow-2xs">
-                        <div className="w-full h-full rounded-full bg-white p-[1.5px]">
-                          <div className="w-full h-full rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px] font-black">
-                            AI
+            {/* ──────── [인스타그램 플랫폼 가로형 피드 화면 및 인라인 편집] ──────── */}
+            {activePlatform === "instagram" && (
+              <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 overflow-hidden text-xs w-full transition-all">
+                <div className="grid grid-cols-1 md:grid-cols-12 min-h-[460px]">
+                  {/* [가로형 좌측]: 피드 미디어 영역 (제작된 카드뉴스 자동 로드 및 슬라이드) */}
+                  <div className="md:col-span-6 lg:col-span-7 bg-[#18181B] relative flex flex-col justify-between overflow-hidden min-h-[380px] md:min-h-[460px] select-none">
+                    {(() => {
+                      const currentCard = cards[selectedCardNewsIndex] || cards[0];
+                      return (
+                        <>
+                          {/* 카드뉴스 배경 */}
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              backgroundColor: currentCard.bgImage ? "transparent" : "#18181B",
+                              backgroundImage: currentCard.bgImage
+                                ? `url(${currentCard.bgImage})`
+                                : (currentCard.bgGradient || "linear-gradient(90deg, #18181B 0%, #27272A 50%, #18181B 100%)"),
+                              backgroundSize: "cover",
+                              backgroundPosition: "center"
+                            }}
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/85" />
+                          </div>
+
+                          {/* 카드뉴스 텍스트 레이아웃 */}
+                          <div className="relative z-10 flex flex-col justify-between h-full p-6 text-white pointer-events-none">
+                            {/* 상단: 태그 및 카드 번호 */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-stone-300 tracking-tight">
+                                {currentCard.tag || currentCard.role || "콘텐츠 제작"}
+                              </span>
+                              <span className="text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">
+                                #{selectedCardNewsIndex + 1} / {cards.length}
+                              </span>
+                            </div>
+
+                            {/* 중앙: 제목 */}
+                            <div className="my-auto py-2 text-left">
+                              <h3 className="text-lg md:text-xl xl:text-2xl font-black leading-snug drop-shadow text-white whitespace-pre-line">
+                                {currentCard.title || "제목 없음"}
+                              </h3>
+                            </div>
+
+                            {/* 하단: 본문 내용 */}
+                            <div className="pt-2 border-t border-white/15">
+                              <p className="text-xs text-stone-300 leading-relaxed whitespace-pre-line line-clamp-3">
+                                {currentCard.body || "내용이 여기에 표시됩니다."}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* 슬라이드 넘김 인디케이터 (2장 이상일 때) */}
+                          {cards.length > 1 && (
+                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/50 backdrop-blur-xs px-2.5 py-1 rounded-full pointer-events-auto">
+                              {cards.map((_, cIdx) => (
+                                <button
+                                  key={cIdx}
+                                  type="button"
+                                  onClick={() => setSelectedCardNewsIndex(cIdx)}
+                                  className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                                    selectedCardNewsIndex === cIdx ? "bg-white w-3.5" : "bg-white/40 hover:bg-white/70 w-1.5"
+                                  }`}
+                                  title={`${cIdx + 1}번 카드로 전환`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* [가로형 우측]: 헤더 + 캡션 인라인 편집기 + 해시태그 + 인터랙션 */}
+                  <div className="md:col-span-6 lg:col-span-5 flex flex-col justify-between border-t md:border-t-0 md:border-l border-stone-100 bg-white">
+                    {/* 상단 인스타그램 헤더 */}
+                    <div className="px-4 py-3 flex items-center justify-between border-b border-stone-100">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 p-[1.5px] shadow-2xs">
+                          <div className="w-full h-full rounded-full bg-white p-[1.5px]">
+                            <div className="w-full h-full rounded-full bg-stone-900 text-white flex items-center justify-center text-[10px] font-black">
+                              AI
+                            </div>
                           </div>
                         </div>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <span className="font-extrabold text-stone-900 text-xs">ainewsroom_official</span>
+                            <span className="w-3 h-3 rounded-full bg-[#8ECAE6] text-stone-950 flex items-center justify-center text-[8px] font-black" title="공식 채널">✓</span>
+                          </div>
+                          <span className="text-[10px] text-stone-400 block font-medium">스폰서 기사 · AI Newsroom</span>
+                        </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
+                        {/* 비율 토글 */}
+                        <button
+                          type="button"
+                          onClick={() => setInstagramAspectRatio((prev) => prev === "4:5" ? "1:1" : "4:5")}
+                          className="px-2 py-0.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] font-bold transition cursor-pointer"
+                          title="이미지 비율 변경"
+                        >
+                          {instagramAspectRatio}
+                        </button>
+                        <button type="button" className="text-stone-400 hover:text-stone-700 p-1">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 중간 스크롤 영역: 본문 캡션 및 해시태그 인라인 편집 */}
+                    <div className="p-4 flex-1 space-y-3 overflow-y-auto max-h-[360px]">
+                      {/* 피드 캡션 인라인 텍스트 편집기 */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
                           <span className="font-extrabold text-stone-900 text-xs">ainewsroom_official</span>
-                          <span className="w-3 h-3 rounded-full bg-[#8ECAE6] text-stone-950 flex items-center justify-center text-[8px] font-black" title="공식 채널">✓</span>
+                          <span className="text-[10px] text-stone-400 font-medium">✏️ 텍스트 직접 편집</span>
                         </div>
-                        <span className="text-[10px] text-stone-400 block font-medium">스폰서 기사 · AI Newsroom</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {/* 비율 토글 */}
-                      <button
-                        type="button"
-                        onClick={() => setInstagramAspectRatio((prev) => prev === "4:5" ? "1:1" : "4:5")}
-                        className="px-2 py-0.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 text-[10px] font-bold transition cursor-pointer"
-                        title="이미지 비율 변경"
-                      >
-                        {instagramAspectRatio}
-                      </button>
-                      <button type="button" className="text-stone-400 hover:text-stone-700 p-1">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 피드 이미지 영역 (그 위에서 이미지 편집 가능) */}
-                  <div
-                    className={`relative overflow-hidden bg-stone-900 group ${
-                      instagramAspectRatio === "1:1" ? "aspect-square" : "aspect-[4/5]"
-                    }`}
-                  >
-                    <img
-                      src={instagramImage}
-                      alt="Instagram Feed Media"
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
-                    />
-
-                    {/* 호버 시 떠오르는 이미지 편집 글래스모피즘 오버레이 컨트롤 */}
-                    <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2.5 p-4">
-                      <span className="text-white text-xs font-bold drop-shadow flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-[#8ECAE6]" />
-                        이미지 직접 편집 / 교체
-                      </span>
-                      <div className="flex flex-wrap items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowUnsplashModal(true)}
-                          className="px-3 py-1.5 rounded-xl bg-white/95 hover:bg-white text-stone-900 text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1 active:scale-95"
-                        >
-                          <Search className="w-3 h-3 text-[#8ECAE6]" />
-                          <span>Unsplash 검색</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => platformFileInputRef.current?.click()}
-                          className="px-3 py-1.5 rounded-xl bg-stone-900/95 hover:bg-black text-white text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1 active:scale-95 border border-stone-700"
-                        >
-                          <FileUp className="w-3 h-3 text-[#8ECAE6]" />
-                          <span>내 사진 업로드</span>
-                        </button>
-                      </div>
-                      <span className="text-[10px] text-white/80">마우스를 올리면 교체 버튼이 활성화됩니다</span>
-                    </div>
-
-                    {/* 기본 상태에서도 살짝 보이는 이미지 편집 안내 뱃지 */}
-                    <div className="absolute top-2.5 right-2.5 px-2 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[10px] font-semibold flex items-center gap-1 pointer-events-none group-hover:opacity-0 transition-opacity">
-                      <ImageIcon className="w-3 h-3 text-[#8ECAE6]" />
-                      <span>클릭/호버하여 사진 교체</span>
-                    </div>
-                  </div>
-
-                  {/* 하단 인터랙션 아이콘 바 */}
-                  <div className="px-3.5 pt-3 pb-1 flex items-center justify-between">
-                    <div className="flex items-center gap-3.5 text-stone-800">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsInstagramLiked((prev) => !prev);
-                          setInstagramLikeCount((prev) => isInstagramLiked ? prev - 1 : prev + 1);
-                        }}
-                        className="cursor-pointer transition-transform active:scale-125"
-                      >
-                        <Heart
-                          className={`w-5 h-5 transition-colors ${
-                            isInstagramLiked ? "fill-rose-500 text-rose-500" : "hover:text-rose-500"
-                          }`}
+                        <textarea
+                          value={instagramCaption}
+                          onChange={(e) => setInstagramCaption(e.target.value)}
+                          rows={4}
+                          placeholder="인스타그램에 등록될 본문 텍스트를 직접 입력하거나 수정하세요..."
+                          className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-800 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
                         />
-                      </button>
-                      <button type="button" className="cursor-pointer hover:text-stone-950">
-                        <MessageCircle className="w-5 h-5" />
-                      </button>
-                      <button type="button" className="cursor-pointer hover:text-stone-950">
-                        <Send className="w-5 h-5" />
-                      </button>
-                    </div>
-                    <button type="button" className="cursor-pointer hover:text-stone-950 text-stone-800">
-                      <Bookmark className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* 텍스트 & 캡션 편집 영역 (피드 위에서 인라인으로 직접 편집) */}
-                  <div className="px-3.5 pb-3 space-y-2">
-                    <div className="text-xs font-black text-stone-900">
-                      좋아요 {instagramLikeCount.toLocaleString()}개
-                    </div>
-
-                    {/* 피드 캡션 인라인 텍스트 편집기 */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-stone-900 text-xs">ainewsroom_official</span>
-                        <span className="text-[10px] text-stone-400 font-medium">✏️ 텍스트 직접 편집</span>
                       </div>
-                      <textarea
-                        value={instagramCaption}
-                        onChange={(e) => setInstagramCaption(e.target.value)}
-                        rows={5}
-                        placeholder="인스타그램에 등록될 본문 텍스트를 직접 입력하거나 수정하세요..."
-                        className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-800 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
-                      />
-                    </div>
 
-                    {/* 해시태그 인라인 편집 칩 목록 */}
-                    <div className="space-y-1.5 pt-1 border-t border-stone-100">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {instagramHashtags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-[#0284c7] text-[11px] font-bold border border-sky-100 group"
-                          >
-                            <span>{tag}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveHashtag(tag)}
-                              className="text-stone-400 hover:text-rose-500 cursor-pointer"
-                              title="태그 삭제"
+                      {/* 해시태그 인라인 편집 칩 목록 */}
+                      <div className="space-y-1.5 pt-1 border-t border-stone-100">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {instagramHashtags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-[#0284c7] text-[11px] font-bold border border-sky-100 group"
                             >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* 태그 추가 인풋 */}
-                      <div className="flex items-center gap-1.5 pt-0.5">
-                        <input
-                          type="text"
-                          value={newHashtagInput}
-                          onChange={(e) => setNewHashtagInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddHashtag(newHashtagInput);
-                            }
-                          }}
-                          placeholder="#새 해시태그 입력 후 Enter"
-                          className="px-2.5 py-1 rounded-lg border border-stone-200 bg-white text-[11px] text-stone-700 outline-none focus:border-[#8ECAE6] flex-1"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleAddHashtag(newHashtagInput)}
-                          className="px-2.5 py-1 rounded-lg bg-stone-900 text-white text-[11px] font-bold hover:bg-black transition cursor-pointer"
-                        >
-                          추가
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 하단 메타 & 댓글 안내 */}
-                    <div className="pt-1 text-[11px] text-stone-400 space-y-0.5">
-                      <p className="cursor-pointer hover:underline">댓글 42개 모두 보기</p>
-                      <p className="text-[10px]">방금 전 · AI Newsroom 공식 배포 채널</p>
-                    </div>
-
-                    {/* 피드 하단 빠른 액션 바 (캡션 복사) */}
-                    <div className="pt-2 border-t border-stone-100 flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={handleCopyInstagramCaption}
-                        className="px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-stone-500" />
-                        <span>{isInstagramCopied ? "복사 완료 ✓" : "캡션 복사"}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ──────── [스레드(Threads) 플랫폼 화면 및 인라인 편집] ──────── */}
-              {activePlatform === "threads" && (
-                <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 p-5 md:p-6 text-xs w-full max-w-xl xl:max-w-2xl mx-auto space-y-4 transition-all">
-                  {/* 타래 1번 포스트 */}
-                  <div className="flex items-start gap-3">
-                    {/* 좌측 아바타 + 타래 연결선 */}
-                    <div className="flex flex-col items-center self-stretch">
-                      <div className="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs">
-                        @
-                      </div>
-                      <div className="w-0.5 bg-stone-200 flex-1 my-1 rounded-full"></div>
-                    </div>
-
-                    {/* 우측 본문 & 편집 영역 */}
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-black text-stone-950 text-xs">ainewsroom_official</span>
-                          <span className="text-[10px] text-stone-400">방금 전</span>
+                              <span>{tag}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveHashtag(tag)}
+                                className="text-stone-400 hover:text-rose-500 cursor-pointer"
+                                title="태그 삭제"
+                              >
+                                <X className="w-2.5 h-2.5" />
+                              </button>
+                            </span>
+                          ))}
                         </div>
-                        <MoreHorizontal className="w-4 h-4 text-stone-400" />
-                      </div>
 
-                      {/* 1번 타래 인라인 텍스트 에디터 */}
-                      <textarea
-                        value={threadsList[0]?.content}
-                        onChange={(e) => updateThreadContent(1, e.target.value)}
-                        rows={4}
-                        placeholder="스레드 1번 내용을 입력하세요..."
-                        className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-900 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
-                      />
-
-                      {/* 스레드 첨부 미디어 이미지 (클릭/호버 시 교체 가능) */}
-                      <div className="rounded-xl overflow-hidden border border-stone-200 relative group aspect-video bg-stone-900">
-                        <img
-                          src={instagramImage}
-                          alt="Threads Attachment"
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
-                        />
-                        <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setShowUnsplashModal(true)}
-                            className="px-2.5 py-1 rounded-lg bg-white text-stone-900 text-[11px] font-bold shadow-sm cursor-pointer flex items-center gap-1 active:scale-95"
-                          >
-                            <Search className="w-3 h-3 text-[#8ECAE6]" />
-                            <span>사진 검색</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => platformFileInputRef.current?.click()}
-                            className="px-2.5 py-1 rounded-lg bg-stone-900 text-white text-[11px] font-bold shadow-sm cursor-pointer flex items-center gap-1 border border-stone-700 active:scale-95"
-                          >
-                            <FileUp className="w-3 h-3 text-[#8ECAE6]" />
-                            <span>업로드</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 인터랙션 아이콘 바 */}
-                      <div className="flex items-center gap-4 text-stone-600 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsThreadsLiked((prev) => !prev);
-                            setThreadsLikeCount((prev) => isThreadsLiked ? prev - 1 : prev + 1);
-                          }}
-                          className="cursor-pointer flex items-center gap-1"
-                        >
-                          <Heart
-                            className={`w-4 h-4 ${isThreadsLiked ? "fill-rose-500 text-rose-500" : "hover:text-rose-500"}`}
+                        {/* 태그 추가 인풋 */}
+                        <div className="flex items-center gap-1.5 pt-0.5">
+                          <input
+                            type="text"
+                            value={newHashtagInput}
+                            onChange={(e) => setNewHashtagInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddHashtag(newHashtagInput);
+                              }
+                            }}
+                            placeholder="#새 해시태그 입력 후 Enter"
+                            className="px-2.5 py-1 rounded-lg border border-stone-200 bg-white text-[11px] text-stone-700 outline-none focus:border-[#8ECAE6] flex-1"
                           />
-                          <span className="text-[10px]">{threadsLikeCount}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddHashtag(newHashtagInput)}
+                            className="px-2.5 py-1 rounded-lg bg-stone-900 text-white text-[11px] font-bold hover:bg-black transition cursor-pointer"
+                          >
+                            추가
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 하단 메타 & 댓글 안내 */}
+                      <div className="pt-1 text-[11px] text-stone-400 space-y-0.5">
+                        <p className="cursor-pointer hover:underline">댓글 42개 모두 보기</p>
+                        <p className="text-[10px]">방금 전 · AI Newsroom 공식 배포 채널</p>
+                      </div>
+                    </div>
+
+                    {/* 하단 인터랙션 아이콘 바 및 캡션 복사 */}
+                    <div className="px-4 py-3 border-t border-stone-100 space-y-2.5 bg-stone-50/30">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3.5 text-stone-800">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsInstagramLiked((prev) => !prev);
+                              setInstagramLikeCount((prev) => isInstagramLiked ? prev - 1 : prev + 1);
+                            }}
+                            className="cursor-pointer transition-transform active:scale-125"
+                          >
+                            <Heart
+                              className={`w-5 h-5 transition-colors ${
+                                isInstagramLiked ? "fill-rose-500 text-rose-500" : "hover:text-rose-500"
+                              }`}
+                            />
+                          </button>
+                          <button type="button" className="cursor-pointer hover:text-stone-950">
+                            <MessageCircle className="w-5 h-5" />
+                          </button>
+                          <button type="button" className="cursor-pointer hover:text-stone-950">
+                            <Send className="w-5 h-5" />
+                          </button>
+                          <button type="button" className="cursor-pointer hover:text-stone-950 text-stone-800">
+                            <Bookmark className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        {/* 피드 하단 빠른 액션 바 (캡션 복사) */}
+                        <button
+                          type="button"
+                          onClick={handleCopyInstagramCaption}
+                          className="px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-white text-stone-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-stone-500" />
+                          <span>{isInstagramCopied ? "복사 완료 ✓" : "캡션 복사"}</span>
                         </button>
-                        <MessageCircle className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
-                        <Repeat className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
-                        <Send className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                      </div>
+
+                      <div className="text-xs font-black text-stone-900">
+                        좋아요 {instagramLikeCount.toLocaleString()}개
                       </div>
                     </div>
                   </div>
 
-                  {/* 타래 2번 포스트 (연결된 타래) */}
-                  <div className="flex items-start gap-3 pt-1">
+                </div>
+              </div>
+            )}
+
+            {/* ──────── [스레드(Threads) 플랫폼 화면 및 인라인 편집] ──────── */}
+            {activePlatform === "threads" && (
+              <div className="bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-stone-200/80 p-5 md:p-6 text-xs w-full max-w-xl xl:max-w-2xl mx-auto space-y-4 transition-all">
+                {/* 타래 1번 포스트 */}
+                <div className="flex items-start gap-3">
+                  {/* 좌측 아바타 + 타래 연결선 */}
+                  <div className="flex flex-col items-center self-stretch">
                     <div className="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs">
                       @
                     </div>
-                    <div className="flex-1 space-y-2">
+                    <div className="w-0.5 bg-stone-200 flex-1 my-1 rounded-full"></div>
+                  </div>
+
+                  {/* 우측 본문 & 편집 영역 */}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-stone-950 text-xs">ainewsroom_official</span>
+                        <span className="text-[10px] text-stone-400">방금 전</span>
+                      </div>
+                      <MoreHorizontal className="w-4 h-4 text-stone-400" />
+                    </div>
+
+                    {/* 1번 타래 인라인 텍스트 에디터 */}
+                    <textarea
+                      value={threadsList[0]?.content}
+                      onChange={(e) => updateThreadContent(1, e.target.value)}
+                      rows={4}
+                      placeholder="스레드 1번 내용을 입력하세요..."
+                      className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-900 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
+                    />
+
+                    {/* 스레드 첨부 미디어: 자동 로드된 카드뉴스 (편집 불가, 자동 반영) */}
+                    <div className="rounded-xl overflow-hidden border border-stone-800 relative select-none aspect-video bg-[#18181B]">
+                      {(() => {
+                        const currentCard = cards[selectedCardNewsIndex] || cards[0];
+                        return (
+                          <>
+                            <div
+                              className="absolute inset-0"
+                              style={{
+                                backgroundColor: currentCard.bgImage ? "transparent" : "#18181B",
+                                backgroundImage: currentCard.bgImage
+                                  ? `url(${currentCard.bgImage})`
+                                  : (currentCard.bgGradient || "linear-gradient(90deg, #18181B 0%, #27272A 50%, #18181B 100%)"),
+                                backgroundSize: "cover",
+                                backgroundPosition: "center"
+                              }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/85" />
+                            </div>
+                            <div className="relative z-10 flex flex-col justify-between h-full p-3.5 text-white pointer-events-none">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-stone-300">
+                                  {currentCard.tag || currentCard.role || "콘텐츠 제작"}
+                                </span>
+                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20">
+                                  AI 카드뉴스 #{selectedCardNewsIndex + 1}
+                                </span>
+                              </div>
+                              <p className="text-xs font-black line-clamp-2 text-white my-auto">
+                                {currentCard.title || "새 카드 제목"}
+                              </p>
+                              <p className="text-[10px] text-stone-300 line-clamp-1 border-t border-white/10 pt-1">
+                                {currentCard.body || "내용이 여기에 표시됩니다."}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    {/* 인터랙션 아이콘 바 */}
+                    <div className="flex items-center gap-4 text-stone-600 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsThreadsLiked((prev) => !prev);
+                          setThreadsLikeCount((prev) => isThreadsLiked ? prev - 1 : prev + 1);
+                        }}
+                        className="cursor-pointer flex items-center gap-1"
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${isThreadsLiked ? "fill-rose-500 text-rose-500" : "hover:text-rose-500"}`}
+                        />
+                        <span className="text-[10px]">{threadsLikeCount}</span>
+                      </button>
+                      <MessageCircle className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                      <Repeat className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                      <Send className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 타래 2번 포스트 (연결된 타래) */}
+                <div className="flex items-start gap-3 pt-1">
+                  <div className="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs">
+                    @
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-black text-stone-950 text-xs">ainewsroom_official</span>
+                        <span className="text-[10px] text-stone-400">방금 전</span>
+                      </div>
+                      <MoreHorizontal className="w-4 h-4 text-stone-400" />
+                    </div>
+
+                    {/* 2번 타래 인라인 텍스트 에디터 */}
+                    <textarea
+                      value={threadsList[1]?.content}
+                      onChange={(e) => updateThreadContent(2, e.target.value)}
+                      rows={3}
+                      placeholder="스레드 2번 (연결 타래) 내용을 입력하세요..."
+                      className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-900 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
+                    />
+
+                    {/* 인터랙션 아이콘 바 */}
+                    <div className="flex items-center gap-4 text-stone-600 pt-0.5">
+                      <Heart className="w-4 h-4 hover:text-rose-500 cursor-pointer" />
+                      <MessageCircle className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                      <Repeat className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                      <Send className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 하단 액션 버튼 바 (스레드 타래 복사) */}
+                <div className="pt-2 border-t border-stone-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyThreads}
+                    className="px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-stone-500" />
+                    <span>{isThreadsCopied ? "복사 완료 ✓" : "스레드 타래 복사"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 파일 업로드 숨김 인풋 */}
+            <input
+              type="file"
+              ref={platformFileInputRef}
+              onChange={handleUploadPlatformImage}
+              accept="image/*"
+              className="hidden"
+            />
+
+            {/* ──────── [가로형 피드 아래 배치]: 원고 구성 (좌) + 연계 원고 검수 (우) ──────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1">
+              {/* 1. 원고 구성 바로가기 및 삽입 박스 (lg:col-span-5) */}
+              <div className="lg:col-span-5 bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-2.5">
+                <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                  <div>
+                    <h3 className="text-xs font-black text-[#292929]">원고 구성</h3>
+                    <p className="text-[10px] text-stone-400">클릭 시 피드 원고에 해당 단락이 반영됩니다</p>
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded-md">
+                    총 6개 단락
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  {[
+                    { id: "intro", label: "도입", text: draftSections.intro },
+                    { id: "body1", label: "본문 1", text: draftSections.body1 },
+                    { id: "body2", label: "본문 2", text: draftSections.body2 },
+                    { id: "body3", label: "본문 3", text: draftSections.body3 },
+                    { id: "outro", label: "마무리", text: draftSections.outro },
+                    { id: "hashtags", label: "해시태그", text: draftSections.hashtags }
+                  ].map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-stone-50/90 hover:bg-stone-100/90 border border-stone-200/80 text-left transition shadow-2xs group space-y-1"
+                    >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-black text-stone-950 text-xs">ainewsroom_official</span>
-                          <span className="text-[10px] text-stone-400">방금 전</span>
-                        </div>
-                        <MoreHorizontal className="w-4 h-4 text-stone-400" />
+                        <span className="text-xs font-black text-stone-800">{item.label}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleInsertDraftSection(item.id)}
+                          className="px-2 py-0.5 rounded-lg bg-stone-900 text-white text-[10px] font-bold hover:bg-black transition cursor-pointer flex items-center gap-1 active:scale-95"
+                        >
+                          <Plus className="w-2.5 h-2.5 text-[#8ECAE6]" />
+                          <span>피드에 삽입</span>
+                        </button>
                       </div>
-
-                      {/* 2번 타래 인라인 텍스트 에디터 */}
-                      <textarea
-                        value={threadsList[1]?.content}
-                        onChange={(e) => updateThreadContent(2, e.target.value)}
-                        rows={3}
-                        placeholder="스레드 2번 (연결 타래) 내용을 입력하세요..."
-                        className="w-full p-2.5 rounded-xl border border-stone-200/80 bg-stone-50/50 hover:bg-stone-50 focus:bg-white text-xs text-stone-900 leading-relaxed outline-none focus:border-[#8ECAE6] focus:ring-2 focus:ring-[#8ECAE6]/20 transition resize-none"
-                      />
-
-                      {/* 인터랙션 아이콘 바 */}
-                      <div className="flex items-center gap-4 text-stone-600 pt-0.5">
-                        <Heart className="w-4 h-4 hover:text-rose-500 cursor-pointer" />
-                        <MessageCircle className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
-                        <Repeat className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
-                        <Send className="w-4 h-4 hover:text-stone-950 cursor-pointer" />
-                      </div>
+                      <p className="text-[11px] text-stone-600 line-clamp-2 leading-relaxed">
+                        {item.text}
+                      </p>
                     </div>
-                  </div>
-
-                  {/* 하단 액션 버튼 바 (스레드 타래 복사) */}
-                  <div className="pt-2 border-t border-stone-100 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={handleCopyThreads}
-                      className="px-3 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                    >
-                      <Copy className="w-3.5 h-3.5 text-stone-500" />
-                      <span>{isThreadsCopied ? "복사 완료 ✓" : "스레드 타래 복사"}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 파일 업로드 숨김 인풋 */}
-              <input
-                type="file"
-                ref={platformFileInputRef}
-                onChange={handleUploadPlatformImage}
-                accept="image/*"
-                className="hidden"
-              />
-            </div>
-
-            {/* ──────── [우측 사이드 패널 (lg:col-span-4 xl:col-span-3)]: 연계 원고 검수 + 원고 구성 (스크롤 시 고정되어 따라오는 sticky 적용) ──────── */}
-            <div className="lg:col-span-4 xl:col-span-3 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto no-scrollbar space-y-4">
-              {/* 1. 상단: 연계 원고 검수 박스 (우측 사이드로 이동) */}
-              <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-3.5">
-                {/* 오른쪽 메인 박스 상단: 이미지 불러오기 기능 */}
-                <div className="pb-3 border-b border-stone-200/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-stone-700" />
-                      <span className="text-xs font-black text-[#292929]">이미지 불러오기</span>
-                    </div>
-                    <span className="text-[10px] text-stone-400 font-medium">보도사진 연동</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowUnsplashModal(true);
-                        if (unsplashResults.length === 0) handleSearchUnsplash(unsplashQuery);
-                      }}
-                      className="px-2 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 text-stone-800 text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
-                      title="언플래쉬에서 고화질 사진 찾기"
-                    >
-                      <Search className="w-3.5 h-3.5 text-stone-600" />
-                      <span className="truncate">언플래쉬</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowDongaDbModal(true)}
-                      className="px-2 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 text-stone-800 text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
-                      title="동아일보 보도사진 DB 아카이브"
-                    >
-                      <BookOpen className="w-3.5 h-3.5 text-stone-600" />
-                      <span className="truncate">동아일보 DB</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => platformFileInputRef.current?.click()}
-                      className="px-2 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200/90 text-stone-800 text-[11px] font-bold transition flex flex-col items-center justify-center gap-1 shadow-2xs cursor-pointer active:scale-95"
-                      title="내 PC에서 사진 불러오기"
-                    >
-                      <FileUp className="w-3.5 h-3.5 text-stone-600" />
-                      <span className="truncate">내 PC</span>
-                    </button>
-                  </div>
+                  ))}
                 </div>
 
+                {/* 전체 원고 원문 근거 대조 토글 */}
+                <div className="pt-2 border-t border-stone-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsAllSourceExpanded((prev) => !prev)}
+                    className="w-full flex items-center justify-between text-[11px] font-bold text-stone-600 hover:text-stone-950 transition cursor-pointer"
+                  >
+                    <span>▶ 전체 원고의 원문 근거 대조</span>
+                    {isAllSourceExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
+                  {isAllSourceExpanded && (
+                    <div className="mt-2 p-2.5 bg-stone-50 rounded-xl border border-stone-200/70 text-[11px] text-stone-700 leading-relaxed whitespace-pre-line animate-in fade-in">
+                      {activeArticle.content || "기사 원문 내용이 로드되었습니다."}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. 연계 원고 검수 박스 (lg:col-span-7) */}
+              <div className="lg:col-span-7 bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
                   <div className="space-y-0.5">
                     <p className="text-[11px] text-stone-700 font-medium">
@@ -3359,69 +3368,9 @@ export default function FormatConverter({ currentArticle: _currentArticle }) {
                   </div>
                 </div>
               </div>
-
-              {/* 2. 하단: 원고 구성 바로가기 및 삽입 박스 */}
-              <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-stone-200/80 p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] space-y-2.5">
-                <div className="flex items-center justify-between pb-2 border-b border-stone-100">
-                  <div>
-                    <h3 className="text-xs font-black text-[#292929]">원고 구성</h3>
-                    <p className="text-[10px] text-stone-400">클릭 시 피드 원고에 해당 단락이 반영됩니다</p>
-                  </div>
-                  <span className="text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded-md">
-                    총 6개 단락
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  {[
-                    { id: "intro", label: "도입", text: draftSections.intro },
-                    { id: "body1", label: "본문 1", text: draftSections.body1 },
-                    { id: "body2", label: "본문 2", text: draftSections.body2 },
-                    { id: "body3", label: "본문 3", text: draftSections.body3 },
-                    { id: "outro", label: "마무리", text: draftSections.outro },
-                    { id: "hashtags", label: "해시태그", text: draftSections.hashtags }
-                  ].map((item) => (
-                    <div
-                      key={item.id}
-                      className="p-2.5 rounded-xl bg-stone-50/90 hover:bg-stone-100/90 border border-stone-200/80 text-left transition shadow-2xs group space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-stone-800">{item.label}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleInsertDraftSection(item.id)}
-                          className="px-2 py-0.5 rounded-lg bg-stone-900 text-white text-[10px] font-bold hover:bg-black transition cursor-pointer flex items-center gap-1 active:scale-95"
-                        >
-                          <Plus className="w-2.5 h-2.5 text-[#8ECAE6]" />
-                          <span>피드에 삽입</span>
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-stone-600 line-clamp-2 leading-relaxed">
-                        {item.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 전체 원고 원문 근거 대조 토글 */}
-                <div className="pt-2 border-t border-stone-100">
-                  <button
-                    type="button"
-                    onClick={() => setIsAllSourceExpanded((prev) => !prev)}
-                    className="w-full flex items-center justify-between text-[11px] font-bold text-stone-600 hover:text-stone-950 transition cursor-pointer"
-                  >
-                    <span>▶ 전체 원고의 원문 근거 대조</span>
-                    {isAllSourceExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-                  {isAllSourceExpanded && (
-                    <div className="mt-2 p-2.5 bg-stone-50 rounded-xl border border-stone-200/70 text-[11px] text-stone-700 leading-relaxed whitespace-pre-line animate-in fade-in">
-                      {activeArticle.content || "기사 원문 내용이 로드되었습니다."}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
-          </>
+
+          </div>
         )}
 
       </div>

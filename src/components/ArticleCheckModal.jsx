@@ -6,7 +6,7 @@ import { Check, MoreHorizontal } from "lucide-react";
  * - 팩트체크 실행 전 검증률(86%) 및 4대 항목 상태를 직관적으로 요약 표시
  * - [전체 검증 실행 →] 클릭 시 기존 FactCheckDrawer 사이드박스 오픈
  */
-export default function ArticleCheckModal({ isOpen, onClose, onStartCheck }) {
+export default function ArticleCheckModal({ isOpen, onClose, onStartCheck, isSideBySide = false }) {
   if (!isOpen) return null;
 
   // 원형 프로그레스 계산 (86%)
@@ -15,15 +15,16 @@ export default function ArticleCheckModal({ isOpen, onClose, onStartCheck }) {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
-  return (
+  const contentCard = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/40 backdrop-blur-xs animate-in fade-in duration-200"
-      onClick={onClose}
+      className={`w-full ${
+        isSideBySide
+          ? "w-[330px] lg:w-[340px] xl:w-[350px] flex-shrink-0 h-[calc(100vh-100px)] min-h-[760px] max-h-[920px] sticky top-4 rounded-3xl overflow-y-auto no-scrollbar border border-slate-200/90 shadow-xs"
+          : "max-w-[340px] sm:max-w-[360px] rounded-[36px] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.18)] border border-stone-100/80"
+      } bg-white p-6 sm:p-7 flex flex-col justify-between animate-in zoom-in-95 duration-200 select-none`}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div
-        className="w-full max-w-[340px] sm:max-w-[360px] bg-white rounded-[36px] p-6 sm:p-7 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.18)] border border-stone-100/80 flex flex-col animate-in zoom-in-95 duration-200 select-none"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div>
         {/* 1. 상단 소제목 & 더보기/닫기 */}
         <div className="flex items-center justify-between mb-1">
           <span className="text-[11px] font-extrabold tracking-wider text-stone-400 uppercase">
@@ -157,12 +158,25 @@ export default function ArticleCheckModal({ isOpen, onClose, onStartCheck }) {
           onClick={() => {
             if (onStartCheck) onStartCheck();
           }}
-          className="w-full py-3.5 rounded-2xl bg-stone-950 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-98 shadow-sm cursor-pointer"
+          className="w-full py-3.5 rounded-2xl bg-stone-950 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-98 shadow-sm cursor-pointer mt-4"
         >
           <span>전체 검증 실행</span>
           <span className="text-sm font-light">→</span>
         </button>
       </div>
+    </div>
+  );
+
+  if (isSideBySide) {
+    return contentCard;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/40 backdrop-blur-xs animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      {contentCard}
     </div>
   );
 }
